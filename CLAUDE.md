@@ -1,8 +1,9 @@
----
-description: Core Alchemy development guidelines and patterns
-globs: *.ts
-alwaysApply: true
----
+<!-- vibe-rules Integration -->
+
+<alchemy_cloudflare>
+Always Apply: true - This rule should ALWAYS be applied by the AI
+Always apply this rule in these files: *.ts
+
 # Alchemy - TypeScript-native Infrastructure as Code
 
 Alchemy is a TypeScript-native Infrastructure-as-Code framework that allows you to define cloud resources using familiar TypeScript patterns. This guide focuses on Cloudflare integration.
@@ -383,3 +384,6 @@ bun run dev
 # Clean up
 bun run destroy
 ```
+</alchemy_cloudflare>
+
+<!-- /vibe-rules Integration -->
