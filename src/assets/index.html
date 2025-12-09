@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <title>unletter - Turn newsletters into RSS feeds</title>
+   <meta name="description"
+      content="Subscribe to your favorite email newsletters in your RSS reader. No more cluttered inbox." />
+   <meta property="og:title" content="unletter - Turn newsletters into RSS feeds" />
+   <meta property="og:description"
+      content="Subscribe to your favorite email newsletters in your RSS reader. No more cluttered inbox." />
+   <meta property="og:type" content="website" />
+   <meta property="og:image" content="/og-image.png" />
+   <meta name="twitter:card" content="summary_large_image" />
+   <link rel="icon" href="./quill-write-02-stroke-rounded.svg" type="image/svg+xml" />
+   <link rel="preconnect" href="https://fonts.googleapis.com" />
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+   <link
+      href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet" />
+   <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+   <div class="grain"></div>
+
+   <main class="container">
+      <header class="header">
+         <h1>unletter</h1>
+         <div class="tagline">
+            Newsletter <span class="arrow">→</span> RSS
+         </div>
+         <p class="subtitle">
+            Subscribe to your favorite email newsletters in your RSS reader.
+            No more cluttered inbox.
+         </p>
+      </header>
+
+      <section class="steps">
+         <div class="steps-header">How it works</div>
+
+         <div class="step">
+            <div class="step-number"><span>1</span></div>
+            <div class="step-content">
+               <h3>Forward a newsletter</h3>
+               <p>
+                  Send any newsletter email to your unique forwarding
+                  address.
+               </p>
+            </div>
+         </div>
+
+         <div class="step">
+            <div class="step-number"><span>2</span></div>
+            <div class="step-content">
+               <h3>We generate your feed</h3>
+               <p>
+                  Each newsletter gets its own RSS feed, automatically
+                  updated.
+               </p>
+            </div>
+         </div>
+
+         <div class="step">
+            <div class="step-number"><span>3</span></div>
+
+            <div class="step-content">
+               <h3>Subscribe in your reader</h3>
+               <p>
+                  Add the feed to Feedly, Reeder, NetNewsWire, or any RSS
+                  reader.
+               </p>
+            </div>
+         </div>
+      </section>
+
+      <section class="benefits">
+         <h2>Why RSS for newsletters?</h2>
+
+         <div class="benefit-list">
+            <div class="benefit">
+               <h4>Unified reading</h4>
+               <p>
+                  All your content in one place, organized the way you want.
+               </p>
+            </div>
+
+            <div class="benefit">
+               <h4>Clean inbox</h4>
+               <p>Keep your email focused on actual correspondence.</p>
+            </div>
+
+            <div class="benefit">
+               <h4>Privacy first</h4>
+               <p>No tracking pixels, no read receipts, no analytics.</p>
+            </div>
+         </div>
+      </section>
+
+      <section class="signup">
+         <h2>Get early access</h2>
+         <p>We're launching soon. Join the waitlist to be notified.</p>
+
+         <form class="signup-form" onsubmit="_handleSubmit(event)">
+            <input type="email" class="email-input" placeholder="your@email.com" required aria-label="Email address" />
+            <button type="submit" class="submit-btn">Get Notified</button>
+         </form>
+      </section>
+
+      <footer class="footer">
+         <p>Newsletter → RSS • Coming Soon</p>
+      </footer>
+   </main>
+
+   <script>
+      function _handleSubmit(event) {
+         event.preventDefault();
+         const input = event.target.querySelector(".email-input");
+         const button = event.target.querySelector(".submit-btn");
+
+         button.textContent = "You're on the list";
+         button.disabled = true;
+         input.disabled = true;
+
+         setTimeout(() => {
+            button.textContent = "Thank you!";
+         }, 1000);
+      }
+   </script>
+</body>
+
+</html>

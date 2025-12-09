@@ -1,5 +1,5 @@
 import alchemy from "alchemy";
-import { Worker } from "alchemy/cloudflare";
+import { Assets, Worker, WranglerJson } from "alchemy/cloudflare";
 import { GitHubComment } from "alchemy/github";
 import { CloudflareStateStore } from "alchemy/state";
 
@@ -7,9 +7,19 @@ const app = await alchemy("unletter", {
 	stateStore: (scope) => new CloudflareStateStore(scope),
 });
 
+const staticAssets = await Assets({
+	path: "./src/assets",
+});
+
 export const worker = await Worker("worker", {
 	entrypoint: "src/worker.ts",
+	bindings: {
+		ASSETS: staticAssets,
+	},
+	domains: ["unletter.app"],
 });
+
+await WranglerJson({ worker });
 
 console.log(worker.url);
 

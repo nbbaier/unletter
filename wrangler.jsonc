@@ -1,0 +1,10 @@
+{
+  "name": "unletter-worker-nbbaier",
+  "main": "src/worker.ts",
+  "compatibility_date": "2025-12-02",
+  "compatibility_flags": [],
+  "assets": {
+    "directory": "src/assets",
+    "binding": "ASSETS"
+  }
+}
