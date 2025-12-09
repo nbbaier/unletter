@@ -106,6 +106,7 @@
             <input type="email" class="email-input" placeholder="your@email.com" required aria-label="Email address" />
             <button type="submit" class="submit-btn">Get Notified</button>
          </form>
+         <div class="form-message" id="formMessage"></div>
       </section>
 
       <footer class="footer">
@@ -114,18 +115,81 @@
    </main>
 
    <script>
-      function _handleSubmit(event) {
+      async function _handleSubmit(event) {
          event.preventDefault();
-         const input = event.target.querySelector(".email-input");
-         const button = event.target.querySelector(".submit-btn");
+         const form = event.target;
+         const input = form.querySelector(".email-input");
+         const button = form.querySelector(".submit-btn");
+         const messageEl = document.getElementById("formMessage");
+         const email = input.value;
 
-         button.textContent = "You're on the list";
+         // Clear any previous messages
+         messageEl.textContent = "";
+         messageEl.className = "form-message";
+
+         // Disable form during submission
          button.disabled = true;
          input.disabled = true;
+         button.textContent = "Joining...";
 
-         setTimeout(() => {
-            button.textContent = "Thank you!";
-         }, 1000);
+         try {
+            const response = await fetch("/api/waitlist", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ email }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+               // Success (201)
+               button.textContent = "You're on the list!";
+               messageEl.textContent = "✓ Successfully added to waitlist!";
+               messageEl.className = "form-message success";
+               setTimeout(() => {
+                  button.textContent = "Thank you!";
+               }, 1000);
+               // Fade out message after 2.5 seconds
+               setTimeout(() => {
+                  messageEl.style.opacity = "0";
+               }, 2500);
+            } else if (response.status === 409) {
+               // Already exists - duplicate email
+               button.textContent = "Already signed up";
+               messageEl.textContent = `✓ ${data.message}`;
+               messageEl.className = "form-message info";
+
+               // Fade out message after 2.5 seconds
+               setTimeout(() => {
+                  messageEl.style.opacity = "0";
+               }, 2500);
+
+               // Re-enable and reset after 3 seconds
+               setTimeout(() => {
+                  button.disabled = false;
+                  input.disabled = false;
+                  button.textContent = "Get Notified";
+                  input.value = "";
+                  messageEl.textContent = "";
+                  messageEl.style.opacity = "";
+                  input.focus();
+               }, 3000);
+            } else {
+               // Other errors (400, 500, etc)
+               button.textContent = "Try again";
+               messageEl.textContent = "⚠ " + (data.error || "Something went wrong");
+               messageEl.className = "form-message error";
+               button.disabled = false;
+               input.disabled = false;
+            }
+         } catch (error) {
+            console.error("Signup error:", error);
+            button.textContent = "Try again";
+            messageEl.textContent = "⚠ Network error - please try again";
+            messageEl.className = "form-message error";
+            button.disabled = false;
+            input.disabled = false;
+         }
       }
    </script>
 </body>

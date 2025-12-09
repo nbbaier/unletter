@@ -6,5 +6,12 @@
   "assets": {
     "directory": "src/assets",
     "binding": "ASSETS"
-  }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "WAITLIST",
+      "id": "waitlist",
+      "preview_id": "waitlist"
+    }
+  ]
 }

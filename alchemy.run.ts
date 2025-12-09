@@ -1,5 +1,5 @@
 import alchemy from "alchemy";
-import { Assets, Worker, WranglerJson } from "alchemy/cloudflare";
+import { Assets, KVNamespace, Worker, WranglerJson } from "alchemy/cloudflare";
 import { GitHubComment } from "alchemy/github";
 import { CloudflareStateStore } from "alchemy/state";
 
@@ -11,10 +11,18 @@ const staticAssets = await Assets({
 	path: "./src/assets",
 });
 
+const waitlistKV = await KVNamespace("waitlist", {
+	title: "unletter-waitlist",
+});
+
 export const worker = await Worker("worker", {
 	entrypoint: "src/worker.ts",
 	bindings: {
 		ASSETS: staticAssets,
+		WAITLIST: waitlistKV,
+		ADMIN_API_KEY: alchemy.secret(
+			process.env.ADMIN_API_KEY || "change-me-in-production",
+		),
 	},
 	domains: ["unletter.app"],
 });

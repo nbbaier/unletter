@@ -309,3 +309,38 @@ h1 {
       min-width: 100%;
    }
 }
+
+/* Form message styles */
+.form-message {
+   margin-top: 16px;
+   padding: 14px 20px;
+   border-radius: 8px;
+   font-size: 0.95rem;
+   text-align: center;
+   transition: opacity 0.4s ease;
+   opacity: 0;
+   font-family: "Work Sans", sans-serif;
+   font-weight: 500;
+}
+
+.form-message:not(:empty) {
+   opacity: 1;
+}
+
+.form-message.success {
+   background-color: rgba(46, 125, 50, 0.08);
+   color: #2e7d32;
+   border: 1px solid rgba(46, 125, 50, 0.2);
+}
+
+.form-message.error {
+   background-color: rgba(211, 47, 47, 0.08);
+   color: #c62828;
+   border: 1px solid rgba(211, 47, 47, 0.2);
+}
+
+.form-message.info {
+   background-color: rgba(37, 99, 235, 0.06);
+   color: #1e40af;
+   border: 1px solid rgba(37, 99, 235, 0.15);
+}
