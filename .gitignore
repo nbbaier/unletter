@@ -36,3 +36,11 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .alchemy/
 .env
 .wrangler/
+
+# Beads stuff
+.beads/beads.db
+.beads/beads.db-*
+.beads/bd.sock
+.beads/.exclusive-lock
+.beads/bd.pipe
+.git/beads-worktrees/
