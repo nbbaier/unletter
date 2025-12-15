@@ -12,6 +12,11 @@
       "binding": "WAITLIST",
       "id": "waitlist",
       "preview_id": "waitlist"
+    },
+    {
+      "binding": "DATA",
+      "id": "data",
+      "preview_id": "data"
     }
   ]
 }

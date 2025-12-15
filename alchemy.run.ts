@@ -15,13 +15,24 @@ const waitlistKV = await KVNamespace("waitlist", {
 	title: "unletter-waitlist",
 });
 
+const dataKV = await KVNamespace("data", {
+	title: "unletter-data",
+});
+
 export const worker = await Worker("worker", {
 	entrypoint: "src/worker.ts",
 	bindings: {
 		ASSETS: staticAssets,
 		WAITLIST: waitlistKV,
+		DATA: dataKV,
 		ADMIN_API_KEY: alchemy.secret(
 			process.env.ADMIN_API_KEY || "change-me-in-production",
+		),
+		WEBHOOK_SECRET: alchemy.secret(
+			process.env.WEBHOOK_SECRET || "change-me-in-production",
+		),
+		JWT_SECRET: alchemy.secret(
+			process.env.JWT_SECRET || "change-me-in-production",
 		),
 	},
 	domains: ["unletter.app"],
