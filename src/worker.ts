@@ -55,19 +55,13 @@ export default {
 			return handleListFeeds(request, env);
 		}
 
-		if (
-			url.pathname.startsWith("/api/feeds/") &&
-			request.method === "DELETE"
-		) {
+		if (url.pathname.startsWith("/api/feeds/") && request.method === "DELETE") {
 			const feedId = url.pathname.split("/api/feeds/")[1];
 			return handleDeleteFeed(request, env, feedId);
 		}
 
 		// Webhook route
-		if (
-			url.pathname === "/api/webhook/inbound" &&
-			request.method === "POST"
-		) {
+		if (url.pathname === "/api/webhook/inbound" && request.method === "POST") {
 			return handleInboundWebhook(request, env);
 		}
 
@@ -80,9 +74,7 @@ export default {
 		}
 
 		// Web view route
-		const viewMatch = url.pathname.match(
-			/^\/feeds\/([^/]+)\/view\/([^/]+)$/,
-		);
+		const viewMatch = url.pathname.match(/^\/feeds\/([^/]+)\/view\/([^/]+)$/);
 		if (viewMatch && request.method === "GET") {
 			const feedId = viewMatch[1];
 			const emailId = viewMatch[2];
@@ -361,9 +353,7 @@ async function handleCreateFeed(
 
 		// Update user's feed list
 		const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
-		const userFeeds: string[] = userFeedsData
-			? JSON.parse(userFeedsData)
-			: [];
+		const userFeeds: string[] = userFeedsData ? JSON.parse(userFeedsData) : [];
 		userFeeds.push(feedId);
 		await env.DATA.put(`user:${auth.userId}:feeds`, JSON.stringify(userFeeds));
 
@@ -451,9 +441,7 @@ async function handleDeleteFeed(
 
 		// Remove from user's feed list
 		const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
-		const userFeeds: string[] = userFeedsData
-			? JSON.parse(userFeedsData)
-			: [];
+		const userFeeds: string[] = userFeedsData ? JSON.parse(userFeedsData) : [];
 		const updatedFeeds = userFeeds.filter((id) => id !== feedId);
 		await env.DATA.put(
 			`user:${auth.userId}:feeds`,

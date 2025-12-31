@@ -13,12 +13,11 @@ const LINK_TEXT_PATTERNS = [
 const ANCHOR_REGEX = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/gi;
 
 export function extractWebViewLink(html: string): string | undefined {
-	let match: RegExpExecArray | null;
-
 	// Reset regex state
 	ANCHOR_REGEX.lastIndex = 0;
 
-	while ((match = ANCHOR_REGEX.exec(html)) !== null) {
+	let match = ANCHOR_REGEX.exec(html);
+	while (match !== null) {
 		const href = match[1];
 		const linkText = match[2];
 
@@ -31,6 +30,7 @@ export function extractWebViewLink(html: string): string | undefined {
 				}
 			}
 		}
+		match = ANCHOR_REGEX.exec(html);
 	}
 
 	return undefined;

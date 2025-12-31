@@ -179,7 +179,7 @@
             } else {
                // Other errors (400, 500, etc)
                button.textContent = "Try again";
-               messageEl.textContent = "⚠ " + (data.error || "Something went wrong");
+               messageEl.textContent = `⚠ ${data.error || "Something went wrong"}`;
                messageEl.className = "form-message error";
                button.disabled = false;
                input.disabled = false;
