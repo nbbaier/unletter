@@ -74,7 +74,7 @@ See [SETUP.md](./SETUP.md) for deployment and configuration instructions.
 
 ## Project Structure
 
-```
+```bash
 src/
 ├── worker.ts          # Main worker with all routes
 ├── types.ts           # TypeScript interfaces
