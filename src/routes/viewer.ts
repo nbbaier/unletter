@@ -129,6 +129,9 @@ export async function handleWebView(
 			headers: {
 				"content-type": "text/html; charset=utf-8",
 				"cache-control": "public, max-age=3600",
+				// CSP to mitigate XSS from newsletter HTML content
+				"content-security-policy":
+					"default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src * data:; frame-src 'none';",
 			},
 		});
 	} catch (error) {

@@ -1,16 +1,7 @@
 import type { worker } from "../../alchemy.run.ts";
 import { extractWebViewLink } from "../lib/patterns.ts";
+import { jsonResponse } from "../lib/response.ts";
 import type { InboundWebhookPayload, StoredEmail } from "../types.ts";
-
-function jsonResponse(data: unknown, status = 200): Response {
-	return new Response(JSON.stringify(data), {
-		status,
-		headers: {
-			"content-type": "application/json",
-			"access-control-allow-origin": "*",
-		},
-	});
-}
 
 export async function handleInboundWebhook(
 	request: Request,

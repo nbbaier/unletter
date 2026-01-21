@@ -4,21 +4,36 @@ export function validateEnv(env: typeof worker.Env): void {
 	const warnings: string[] = [];
 	const errors: string[] = [];
 
-	// Critical secrets that must be set in production
-	if (env.ADMIN_API_KEY === "change-me-in-production") {
+	// Validate ADMIN_API_KEY
+	const adminApiKey = env.ADMIN_API_KEY;
+	if (!adminApiKey || adminApiKey.trim() === "") {
+		errors.push(
+			"ADMIN_API_KEY must be set to a non-empty, secure value in production. This key protects admin endpoints.",
+		);
+	} else if (adminApiKey === "change-me-in-production") {
 		errors.push(
 			"ADMIN_API_KEY must be set to a secure value in production. This key protects admin endpoints.",
 		);
 	}
 
-	if (env.JWT_SECRET === "change-me-in-production") {
+	// Validate JWT_SECRET
+	const jwtSecret = env.JWT_SECRET;
+	if (typeof jwtSecret !== "string" || jwtSecret.trim() === "") {
 		errors.push(
-			"JWT_SECRET must be set to a secure value in production. This secret is used to sign authentication tokens.",
+			"JWT_SECRET must be set to a non-empty, secure value in production. This secret is used to sign authentication tokens.",
 		);
-	}
+	} else {
+		if (jwtSecret === "change-me-in-production") {
+			errors.push(
+				"JWT_SECRET must be set to a secure value in production. This secret is used to sign authentication tokens.",
+			);
+		}
 
-	if (env.JWT_SECRET && env.JWT_SECRET.length < 32) {
-		errors.push("JWT_SECRET must be at least 32 characters long for security.");
+		if (jwtSecret.length < 32) {
+			errors.push(
+				"JWT_SECRET must be at least 32 characters long for security.",
+			);
+		}
 	}
 
 	if (env.WEBHOOK_SECRET === "change-me-in-production") {

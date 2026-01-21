@@ -98,11 +98,17 @@ export default {
 
 		// Health check endpoint
 		if (url.pathname === "/health" && request.method === "GET") {
+			// Version from environment or "unknown" if not set
+			const version =
+				(env as Record<string, unknown>).APP_VERSION ??
+				(env as Record<string, unknown>).VERSION ??
+				"unknown";
+
 			return new Response(
 				JSON.stringify({
 					status: "healthy",
 					timestamp: new Date().toISOString(),
-					version: "1.0.0",
+					version,
 				}),
 				{
 					headers: {

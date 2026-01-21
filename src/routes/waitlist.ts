@@ -5,6 +5,7 @@ import {
 	RateLimiter,
 	rateLimitResponse,
 } from "../lib/rate-limit.ts";
+import { jsonResponse } from "../lib/response.ts";
 import { getFirstError, WaitlistSchema } from "../lib/schemas.ts";
 
 interface WaitlistEntry {
@@ -12,16 +13,6 @@ interface WaitlistEntry {
 	timestamp: string;
 	userAgent: string;
 	referrer: string;
-}
-
-function jsonResponse(data: unknown, status = 200): Response {
-	return new Response(JSON.stringify(data), {
-		status,
-		headers: {
-			"content-type": "application/json",
-			"access-control-allow-origin": "*",
-		},
-	});
 }
 
 export async function handleWaitlistSignup(
@@ -70,7 +61,13 @@ export async function handleAdminList(
 	env: typeof worker.Env,
 ): Promise<Response> {
 	const authHeader = request.headers.get("authorization");
-	const expectedKey = env.ADMIN_API_KEY || "your-secret-key-here";
+	const expectedKey = env.ADMIN_API_KEY;
+
+	// Fail closed: require a properly configured API key
+	if (!expectedKey || expectedKey.trim() === "") {
+		console.error("ADMIN_API_KEY is not configured");
+		return jsonResponse({ error: "Server misconfigured" }, 500);
+	}
 
 	if (authHeader !== `Bearer ${expectedKey}`) {
 		return jsonResponse({ error: "Unauthorized" }, 401);

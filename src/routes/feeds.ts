@@ -2,19 +2,10 @@ import { Feed as RSSFeed } from "feed";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import type { worker } from "../../alchemy.run.ts";
+import { jsonResponse } from "../lib/response.ts";
 import { CreateFeedSchema, getFirstError } from "../lib/schemas.ts";
 import type { Feed, StoredEmail } from "../types.ts";
 import { authenticateRequest } from "./auth.ts";
-
-function jsonResponse(data: unknown, status = 200): Response {
-	return new Response(JSON.stringify(data), {
-		status,
-		headers: {
-			"content-type": "application/json",
-			"access-control-allow-origin": "*",
-		},
-	});
-}
 
 export async function handleCreateFeed(
 	request: Request,

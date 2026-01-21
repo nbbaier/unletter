@@ -7,6 +7,7 @@ export interface RateLimitResult {
 	allowed: boolean;
 	remaining: number;
 	resetAt: number;
+	limit: number;
 }
 
 export class RateLimiter {
@@ -15,6 +16,17 @@ export class RateLimiter {
 		private config: RateLimitConfig,
 	) {}
 
+	/**
+	 * Check if a request is allowed under the rate limit.
+	 *
+	 * NOTE: This implementation has a known race condition between reading
+	 * the current count and incrementing it. Two simultaneous requests could
+	 * both read the same count and both be allowed, potentially exceeding
+	 * the limit by a small amount during bursts. This is an acceptable
+	 * trade-off for simplicity, as Cloudflare KV does not support atomic
+	 * increment operations. For stricter rate limiting, consider using
+	 * Durable Objects or an external rate limiting service.
+	 */
 	async check(key: string): Promise<RateLimitResult> {
 		const now = Math.floor(Date.now() / 1000);
 		const windowStart = Math.floor(now / this.config.window);
@@ -31,18 +43,20 @@ export class RateLimiter {
 				allowed: false,
 				remaining: 0,
 				resetAt,
+				limit: this.config.limit,
 			};
 		}
 
 		// Increment counter
 		await this.kv.put(windowKey, String(count + 1), {
-			expirationTtl: this.config.window * 2, // Keep for 2 windows to prevent race conditions
+			expirationTtl: this.config.window * 2, // Keep for 2 windows to handle edge cases
 		});
 
 		return {
 			allowed: true,
 			remaining: this.config.limit - count - 1,
 			resetAt,
+			limit: this.config.limit,
 		};
 	}
 }
@@ -67,8 +81,8 @@ export function rateLimitResponse(result: RateLimitResult): Response {
 			headers: {
 				"content-type": "application/json",
 				"retry-after": String(retryAfter),
-				"x-ratelimit-limit": "5",
-				"x-ratelimit-remaining": "0",
+				"x-ratelimit-limit": String(result.limit),
+				"x-ratelimit-remaining": String(result.remaining),
 				"x-ratelimit-reset": String(result.resetAt),
 				"access-control-allow-origin": "*",
 			},

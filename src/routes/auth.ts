@@ -12,18 +12,9 @@ import {
 	RateLimiter,
 	rateLimitResponse,
 } from "../lib/rate-limit.ts";
+import { jsonResponse } from "../lib/response.ts";
 import { getFirstError, LoginSchema, SignupSchema } from "../lib/schemas.ts";
 import type { User } from "../types.ts";
-
-function jsonResponse(data: unknown, status = 200): Response {
-	return new Response(JSON.stringify(data), {
-		status,
-		headers: {
-			"content-type": "application/json",
-			"access-control-allow-origin": "*",
-		},
-	});
-}
 
 export async function handleSignup(
 	request: Request,
