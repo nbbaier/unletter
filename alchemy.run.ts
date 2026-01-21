@@ -37,7 +37,7 @@ export const worker = await Worker("worker", {
 			process.env.JWT_SECRET || "change-me-in-production",
 		),
 	},
-	domains: ["unletter.app"],
+	domains: process.env.PULL_REQUEST ? undefined : ["unletter.app"],
 	adopt: true,
 });
 
