@@ -23,6 +23,7 @@
 	},
 	"dependencies": {
 		"feed": "^4.2.2",
-		"nanoid": "^5.0.9"
+		"nanoid": "^5.0.9",
+		"zod": "^4.3.5"
 	}
 }
