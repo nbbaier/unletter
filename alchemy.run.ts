@@ -13,10 +13,12 @@ const staticAssets = await Assets({
 
 const waitlistKV = await KVNamespace("waitlist", {
 	title: "unletter-waitlist",
+	adopt: true,
 });
 
 const dataKV = await KVNamespace("data", {
 	title: "unletter-data",
+	adopt: true,
 });
 
 export const worker = await Worker("worker", {
@@ -35,7 +37,8 @@ export const worker = await Worker("worker", {
 			process.env.JWT_SECRET || "change-me-in-production",
 		),
 	},
-	domains: ["unletter.app"],
+	domains: process.env.PULL_REQUEST ? undefined : ["unletter.app"],
+	adopt: true,
 });
 
 await WranglerJson({ worker });
