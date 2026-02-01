@@ -74,13 +74,22 @@ export async function handleAdminList(
 	}
 
 	try {
-		const list = await env.WAITLIST.list();
 		const emails: WaitlistEntry[] = [];
+		let listComplete = false;
+		let cursor: string | undefined;
 
-		for (const key of list.keys) {
-			const value = await env.WAITLIST.get(key.name);
-			if (value) {
-				emails.push(JSON.parse(value));
+		while (!listComplete) {
+			const list = await env.WAITLIST.list({ cursor });
+			listComplete = list.list_complete;
+			cursor = list.cursor;
+
+			const batchPromises = list.keys.map((key) => env.WAITLIST.get(key.name));
+			const batchResults = await Promise.all(batchPromises);
+
+			for (const value of batchResults) {
+				if (value) {
+					emails.push(JSON.parse(value));
+				}
 			}
 		}
 
