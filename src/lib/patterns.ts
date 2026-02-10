@@ -21,11 +21,11 @@ export function extractWebViewLink(html: string): string | undefined {
 		const href = match[1];
 		const linkText = match[2];
 
-		// Check if the link text matches any of our patterns
-		for (const pattern of LINK_TEXT_PATTERNS) {
-			if (pattern.test(linkText)) {
-				// Basic validation that it's a real URL
-				if (href.startsWith("http://") || href.startsWith("https://")) {
+		// Basic validation that it's a real URL before doing regex matching
+		if (href.startsWith("http://") || href.startsWith("https://")) {
+			// Check if the link text matches any of our patterns
+			for (const pattern of LINK_TEXT_PATTERNS) {
+				if (pattern.test(linkText)) {
 					return href;
 				}
 			}
