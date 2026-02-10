@@ -72,11 +72,11 @@ export async function handleInboundWebhook(
 			webViewLink,
 		};
 
-		// Store email
-		await env.DATA.put(`email:${emailId}`, JSON.stringify(storedEmail));
-
-		// Update feed's email list (prepend to keep newest first)
-		const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
+		// Store email and fetch feed's email list in parallel
+		const [_, emailListData] = await Promise.all([
+			env.DATA.put(`email:${emailId}`, JSON.stringify(storedEmail)),
+			env.DATA.get(`feed:${feedId}:emails`),
+		]);
 		const emailIds: string[] = emailListData ? JSON.parse(emailListData) : [];
 		emailIds.unshift(emailId);
 		await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify(emailIds));
