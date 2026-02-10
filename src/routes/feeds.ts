@@ -116,9 +116,9 @@ export async function handleDeleteFeed(
 		const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
 		const emailIds: string[] = emailListData ? JSON.parse(emailListData) : [];
 
-		for (const emailId of emailIds) {
-			await env.DATA.delete(`email:${emailId}`);
-		}
+		await Promise.all(
+			emailIds.map((emailId) => env.DATA.delete(`email:${emailId}`)),
+		);
 
 		// Delete feed data
 		await env.DATA.delete(`feed:${feedId}`);
