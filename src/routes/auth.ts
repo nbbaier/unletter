@@ -8,8 +8,8 @@ import {
 	verifyToken,
 } from "../lib/auth.ts";
 import {
+	DurableRateLimiter,
 	getClientIP,
-	RateLimiter,
 	rateLimitResponse,
 } from "../lib/rate-limit.ts";
 import { jsonResponse } from "../lib/response.ts";
@@ -22,7 +22,10 @@ export async function handleSignup(
 ): Promise<Response> {
 	// Rate limiting: 3 signups per hour per IP
 	const clientIP = getClientIP(request);
-	const signupLimiter = new RateLimiter(env.DATA, { limit: 3, window: 3600 });
+	const signupLimiter = new DurableRateLimiter(env.RATE_LIMITER, {
+		limit: 3,
+		window: 3600,
+	});
 	const rateLimitResult = await signupLimiter.check(`signup:${clientIP}`);
 
 	if (!rateLimitResult.allowed) {
@@ -83,7 +86,10 @@ export async function handleLogin(
 ): Promise<Response> {
 	// Rate limiting: 5 login attempts per minute per IP
 	const clientIP = getClientIP(request);
-	const loginLimiter = new RateLimiter(env.DATA, { limit: 5, window: 60 });
+	const loginLimiter = new DurableRateLimiter(env.RATE_LIMITER, {
+		limit: 5,
+		window: 60,
+	});
 	const rateLimitResult = await loginLimiter.check(`login:${clientIP}`);
 
 	if (!rateLimitResult.allowed) {

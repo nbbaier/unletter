@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { worker } from "../../alchemy.run.ts";
 import {
+	DurableRateLimiter,
 	getClientIP,
-	RateLimiter,
 	rateLimitResponse,
 } from "../lib/rate-limit.ts";
 import { jsonResponse } from "../lib/response.ts";
@@ -21,7 +21,10 @@ export async function handleWaitlistSignup(
 ): Promise<Response> {
 	// Rate limiting: 5 waitlist signups per hour per IP
 	const clientIP = getClientIP(request);
-	const waitlistLimiter = new RateLimiter(env.DATA, { limit: 5, window: 3600 });
+	const waitlistLimiter = new DurableRateLimiter(env.RATE_LIMITER, {
+		limit: 5,
+		window: 3600,
+	});
 	const rateLimitResult = await waitlistLimiter.check(`waitlist:${clientIP}`);
 
 	if (!rateLimitResult.allowed) {
@@ -74,16 +77,28 @@ export async function handleAdminList(
 	}
 
 	try {
-		const list = await env.WAITLIST.list();
-		const emailPromises = list.keys.map(async (key) => {
-			const value = await env.WAITLIST.get(key.name);
-			return value ? JSON.parse(value) : null;
-		});
+		const emails: WaitlistEntry[] = [];
+		let listComplete = false;
+		let cursor: string | undefined;
 
-		const results = await Promise.all(emailPromises);
-		const emails: WaitlistEntry[] = results.filter(
-			(entry): entry is WaitlistEntry => entry !== null,
-		);
+		while (!listComplete) {
+			const list = await env.WAITLIST.list({ cursor });
+			listComplete = list.list_complete;
+			cursor = list.list_complete ? undefined : list.cursor;
+
+			const batchResults = await Promise.all(
+				list.keys.map(async (key) => {
+					const value = await env.WAITLIST.get(key.name);
+					return value ? (JSON.parse(value) as WaitlistEntry) : null;
+				}),
+			);
+
+			for (const entry of batchResults) {
+				if (entry) {
+					emails.push(entry);
+				}
+			}
+		}
 
 		emails.sort(
 			(a, b) =>
