@@ -10,6 +10,9 @@ export interface RateLimitResult {
 	limit: number;
 }
 
+/**
+ * @deprecated Use DurableRateLimiter instead for strict rate limiting.
+ */
 export class RateLimiter {
 	constructor(
 		private kv: KVNamespace,
@@ -58,6 +61,34 @@ export class RateLimiter {
 			resetAt,
 			limit: this.config.limit,
 		};
+	}
+}
+
+export class DurableRateLimiter {
+	constructor(
+		private namespace: DurableObjectNamespace,
+		private config: RateLimitConfig,
+	) {}
+
+	/**
+	 * Check if a request is allowed under the rate limit using Durable Objects.
+	 * This implementation is atomic and strictly enforces the limit.
+	 */
+	async check(key: string): Promise<RateLimitResult> {
+		const id = this.namespace.idFromName(key);
+		const stub = this.namespace.get(id);
+
+		const response = await stub.fetch(`http://rate-limiter/${key}`, {
+			method: "POST",
+			body: JSON.stringify(this.config),
+			headers: { "Content-Type": "application/json" },
+		});
+
+		if (!response.ok) {
+			throw new Error(`Rate limit check failed: ${response.statusText}`);
+		}
+
+		return (await response.json()) as RateLimitResult;
 	}
 }
 

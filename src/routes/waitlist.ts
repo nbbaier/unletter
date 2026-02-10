@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { worker } from "../../alchemy.run.ts";
 import {
+	DurableRateLimiter,
 	getClientIP,
-	RateLimiter,
 	rateLimitResponse,
 } from "../lib/rate-limit.ts";
 import { jsonResponse } from "../lib/response.ts";
@@ -21,7 +21,10 @@ export async function handleWaitlistSignup(
 ): Promise<Response> {
 	// Rate limiting: 5 waitlist signups per hour per IP
 	const clientIP = getClientIP(request);
-	const waitlistLimiter = new RateLimiter(env.DATA, { limit: 5, window: 3600 });
+	const waitlistLimiter = new DurableRateLimiter(env.RATE_LIMITER, {
+		limit: 5,
+		window: 3600,
+	});
 	const rateLimitResult = await waitlistLimiter.check(`waitlist:${clientIP}`);
 
 	if (!rateLimitResult.allowed) {
