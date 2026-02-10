@@ -1,5 +1,11 @@
 import alchemy from "alchemy";
-import { Assets, KVNamespace, Worker, WranglerJson } from "alchemy/cloudflare";
+import {
+	Assets,
+	DurableObjectNamespace,
+	KVNamespace,
+	Worker,
+	WranglerJson,
+} from "alchemy/cloudflare";
 import { GitHubComment } from "alchemy/github";
 import { CloudflareStateStore } from "alchemy/state";
 
@@ -21,12 +27,17 @@ const dataKV = await KVNamespace("data", {
 	adopt: true,
 });
 
+const rateLimiterDO = DurableObjectNamespace("rate-limiter", {
+	className: "RateLimiterDO",
+});
+
 export const worker = await Worker("worker", {
 	entrypoint: "src/worker.ts",
 	bindings: {
 		ASSETS: staticAssets,
 		WAITLIST: waitlistKV,
 		DATA: dataKV,
+		RATE_LIMITER: rateLimiterDO,
 		ADMIN_API_KEY: alchemy.secret(
 			process.env.ADMIN_API_KEY || "change-me-in-production",
 		),

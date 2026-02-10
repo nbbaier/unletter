@@ -10,6 +10,9 @@ export interface RateLimitResult {
 	limit: number;
 }
 
+/**
+ * @deprecated Use DurableRateLimiter instead for strict rate limiting.
+ */
 export class RateLimiter {
 	constructor(
 		private kv: KVNamespace,
@@ -56,6 +59,50 @@ export class RateLimiter {
 			allowed: true,
 			remaining: this.config.limit - count - 1,
 			resetAt,
+			limit: this.config.limit,
+		};
+	}
+}
+
+export class DurableRateLimiter {
+	constructor(
+		private namespace: DurableObjectNamespace,
+		private config: RateLimitConfig,
+	) {}
+
+	/**
+	 * Check if a request is allowed under the rate limit using Durable Objects.
+	 * This implementation is atomic and strictly enforces the limit.
+	 * Fails open (allows request) if the DO is unavailable to avoid taking down endpoints.
+	 */
+	async check(key: string): Promise<RateLimitResult> {
+		try {
+			const id = this.namespace.idFromName(key);
+			const stub = this.namespace.get(id);
+
+			const response = await stub.fetch(`http://rate-limiter/${key}`, {
+				method: "POST",
+				body: JSON.stringify(this.config),
+				headers: { "Content-Type": "application/json" },
+			});
+
+			if (!response.ok) {
+				console.error(`Rate limit DO returned ${response.status}: ${response.statusText}`);
+				return this.failOpen();
+			}
+
+			return (await response.json()) as RateLimitResult;
+		} catch (error) {
+			console.error("Rate limit check failed, failing open:", error);
+			return this.failOpen();
+		}
+	}
+
+	private failOpen(): RateLimitResult {
+		return {
+			allowed: true,
+			remaining: this.config.limit,
+			resetAt: Math.floor(Date.now() / 1000) + this.config.window,
 			limit: this.config.limit,
 		};
 	}

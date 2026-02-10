@@ -6,6 +6,8 @@ import * as viewer from "./routes/viewer.ts";
 import * as waitlist from "./routes/waitlist.ts";
 import * as webhook from "./routes/webhook.ts";
 
+export { RateLimiterDO } from "./durable-objects/rate-limiter.ts";
+
 // Worker state to track if environment has been validated
 let envValidated = false;
 
