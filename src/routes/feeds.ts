@@ -161,9 +161,11 @@ export async function handleGetFeed(
 			: [];
 
 		// Fetch emails
+		const emailDataPromises = emailIds.map((id) => env.DATA.get(`email:${id}`));
+		const emailDataList = await Promise.all(emailDataPromises);
+
 		const emails: StoredEmail[] = [];
-		for (const emailId of emailIds) {
-			const emailData = await env.DATA.get(`email:${emailId}`);
+		for (const emailData of emailDataList) {
 			if (emailData) {
 				emails.push(JSON.parse(emailData));
 			}
