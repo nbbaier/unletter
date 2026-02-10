@@ -1,5 +1,21 @@
 import type { RateLimitConfig, RateLimitResult } from "../lib/rate-limit.ts";
 
+// Allowed rate limit configurations (server-side validation)
+const ALLOWED_CONFIGS: Record<string, { limit: number; window: number }> = {
+	"3:3600": { limit: 3, window: 3600 }, // signup: 3/hour
+	"5:60": { limit: 5, window: 60 }, // login: 5/minute
+	"5:3600": { limit: 5, window: 3600 }, // waitlist: 5/hour
+};
+
+function validateConfig(config: RateLimitConfig): RateLimitConfig {
+	const key = `${config.limit}:${config.window}`;
+	const allowed = ALLOWED_CONFIGS[key];
+	if (!allowed) {
+		throw new Error(`Invalid rate limit config: ${key}`);
+	}
+	return allowed;
+}
+
 export class RateLimiterDO implements DurableObject {
 	constructor(
 		private state: DurableObjectState,
@@ -7,7 +23,8 @@ export class RateLimiterDO implements DurableObject {
 	) {}
 
 	async fetch(request: Request): Promise<Response> {
-		const config: RateLimitConfig = await request.json();
+		const rawConfig: RateLimitConfig = await request.json();
+		const config = validateConfig(rawConfig);
 
 		const now = Math.floor(Date.now() / 1000);
 		const windowStart = Math.floor(now / config.window);
@@ -60,6 +77,24 @@ export class RateLimiterDO implements DurableObject {
 	}
 
 	async alarm() {
-		await this.state.storage.deleteAll();
+		// Only delete expired window keys, not the entire storage
+		const now = Math.floor(Date.now() / 1000);
+		const entries = await this.state.storage.list<number>();
+		const keysToDelete: string[] = [];
+
+		for (const [key] of entries) {
+			if (!key.startsWith("count:")) continue;
+			const windowStart = Number.parseInt(key.split(":")[1], 10);
+			// Delete windows that ended more than one window ago (conservative)
+			// We don't know the exact window size, but if the alarm fires,
+			// the window that scheduled it is at least 2x past
+			if (windowStart < now / 60) {
+				keysToDelete.push(key);
+			}
+		}
+
+		if (keysToDelete.length > 0) {
+			await this.state.storage.delete(keysToDelete);
+		}
 	}
 }

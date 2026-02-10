@@ -73,22 +73,38 @@ export class DurableRateLimiter {
 	/**
 	 * Check if a request is allowed under the rate limit using Durable Objects.
 	 * This implementation is atomic and strictly enforces the limit.
+	 * Fails open (allows request) if the DO is unavailable to avoid taking down endpoints.
 	 */
 	async check(key: string): Promise<RateLimitResult> {
-		const id = this.namespace.idFromName(key);
-		const stub = this.namespace.get(id);
+		try {
+			const id = this.namespace.idFromName(key);
+			const stub = this.namespace.get(id);
 
-		const response = await stub.fetch(`http://rate-limiter/${key}`, {
-			method: "POST",
-			body: JSON.stringify(this.config),
-			headers: { "Content-Type": "application/json" },
-		});
+			const response = await stub.fetch(`http://rate-limiter/${key}`, {
+				method: "POST",
+				body: JSON.stringify(this.config),
+				headers: { "Content-Type": "application/json" },
+			});
 
-		if (!response.ok) {
-			throw new Error(`Rate limit check failed: ${response.statusText}`);
+			if (!response.ok) {
+				console.error(`Rate limit DO returned ${response.status}: ${response.statusText}`);
+				return this.failOpen();
+			}
+
+			return (await response.json()) as RateLimitResult;
+		} catch (error) {
+			console.error("Rate limit check failed, failing open:", error);
+			return this.failOpen();
 		}
+	}
 
-		return (await response.json()) as RateLimitResult;
+	private failOpen(): RateLimitResult {
+		return {
+			allowed: true,
+			remaining: this.config.limit,
+			resetAt: Math.floor(Date.now() / 1000) + this.config.window,
+			limit: this.config.limit,
+		};
 	}
 }
 
