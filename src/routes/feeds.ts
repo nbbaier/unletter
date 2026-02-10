@@ -119,11 +119,17 @@ export async function handleDeleteFeed(
 		const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
 		const emailIds: string[] = emailListData ? JSON.parse(emailListData) : [];
 
-		for (const emailId of emailIds) {
-			await env.DATA.delete(`email:${emailId}`);
+		// Delete emails in parallel, using allSettled to ensure cleanup
+		// continues even if individual deletes fail
+		const results = await Promise.allSettled(
+			emailIds.map((emailId) => env.DATA.delete(`email:${emailId}`)),
+		);
+		const failures = results.filter((r) => r.status === "rejected");
+		if (failures.length > 0) {
+			console.error(`Failed to delete ${failures.length}/${emailIds.length} emails for feed ${feedId}`);
 		}
 
-		// Delete feed data
+		// Always clean up feed metadata and user index
 		await env.DATA.delete(`feed:${feedId}`);
 		await env.DATA.delete(`feed:${feedId}:emails`);
 
