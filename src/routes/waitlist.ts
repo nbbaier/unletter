@@ -75,14 +75,15 @@ export async function handleAdminList(
 
 	try {
 		const list = await env.WAITLIST.list();
-		const emails: WaitlistEntry[] = [];
-
-		for (const key of list.keys) {
+		const emailPromises = list.keys.map(async (key) => {
 			const value = await env.WAITLIST.get(key.name);
-			if (value) {
-				emails.push(JSON.parse(value));
-			}
-		}
+			return value ? JSON.parse(value) : null;
+		});
+
+		const results = await Promise.all(emailPromises);
+		const emails: WaitlistEntry[] = results.filter(
+			(entry): entry is WaitlistEntry => entry !== null,
+		);
 
 		emails.sort(
 			(a, b) =>
