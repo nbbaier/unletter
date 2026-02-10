@@ -80,8 +80,8 @@ export async function handleAdminList(
 
 		while (!listComplete) {
 			const list = await env.WAITLIST.list({ cursor });
-			listComplete = list.list_complete;
-			cursor = list.cursor;
+		listComplete = list.list_complete;
+		cursor = list.list_complete ? undefined : list.cursor;
 
 			const batchPromises = list.keys.map((key) => env.WAITLIST.get(key.name));
 			const batchResults = await Promise.all(batchPromises);
