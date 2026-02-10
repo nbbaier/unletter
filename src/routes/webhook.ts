@@ -1,6 +1,7 @@
 import type { worker } from "../../alchemy.run.ts";
 import { extractWebViewLink } from "../lib/patterns.ts";
 import { jsonResponse } from "../lib/response.ts";
+import { sanitizeEmailContent } from "../lib/sanitize.ts";
 import type { InboundWebhookPayload, StoredEmail } from "../types.ts";
 
 export async function handleInboundWebhook(
@@ -37,12 +38,25 @@ export async function handleInboundWebhook(
 		const fromName = fromAddress?.name || "";
 		const fromEmail = fromAddress?.address || payload.email.from.text;
 
-		// Extract web view link from HTML
+		// Extract web view link from HTML (before sanitization)
 		const webViewLink = payload.email.parsedData.htmlBody
 			? extractWebViewLink(payload.email.parsedData.htmlBody)
 			: undefined;
 
-		// Create stored email
+		// Sanitize HTML content before storage
+		const { sanitizedHtml, hasScript, hasInlineStyle } = sanitizeEmailContent(
+			payload.email.parsedData.htmlBody || "",
+		);
+
+		// Log if suspicious content was detected
+		if (hasScript || hasInlineStyle) {
+			console.warn(
+				`Email ${payload.email.id} from ${fromEmail} contained potentially unsafe content ` +
+					`(scripts: ${hasScript}, inline styles: ${hasInlineStyle}). Content sanitized.`,
+			);
+		}
+
+		// Create stored email with sanitized content
 		const emailId = payload.email.id;
 		const storedEmail: StoredEmail = {
 			id: emailId,
@@ -52,7 +66,7 @@ export async function handleInboundWebhook(
 				name: fromName,
 				email: fromEmail,
 			},
-			html: payload.email.parsedData.htmlBody || "",
+			html: sanitizedHtml,
 			text: payload.email.parsedData.textBody || "",
 			timestamp: payload.email.receivedAt,
 			webViewLink,
