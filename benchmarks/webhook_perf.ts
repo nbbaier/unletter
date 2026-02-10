@@ -1,6 +1,6 @@
+// Run with: bun benchmarks/webhook_perf.ts
 import type { worker } from "../alchemy.run.ts";
 import { handleInboundWebhook } from "../src/routes/webhook.ts";
-
 
 const mockEnv = {
 	WEBHOOK_SECRET: "secret",
