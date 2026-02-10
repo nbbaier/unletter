@@ -1,3 +1,4 @@
+// Run with: bun benchmarks/benchmark.ts
 import { handleGetFeed } from "../src/routes/feeds.ts";
 
 // Mock KVNamespace
