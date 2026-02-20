@@ -1,9 +1,23 @@
 :root {
+  /* Core palette */
   --ink: #1a1a1a;
   --paper: #fdfbf7;
   --accent: #d84315;
+  --accent-hover: #bf360c;
   --muted: #6b7280;
   --border: #e5dfd3;
+
+  /* Surfaces */
+  --surface: #f8f6f1;
+  --on-accent: #fff;
+
+  /* State colors */
+  --success: #2d6a4f;
+  --success-border: #95b8a1;
+  --error: #a4161a;
+  --error-border: #d4a5a5;
+  --info: #1f4788;
+  --info-border: #a8bfe0;
 }
 
 * {
@@ -132,7 +146,7 @@ h1 {
   font-size: 24px;
   font-weight: 500;
   line-height: 1;
-  color: white;
+  color: var(--on-accent);
   background: var(--accent);
   /* border: 2px solid var(--accent); */
   border-radius: 50%;
@@ -161,7 +175,7 @@ h1 {
 
 .benefits {
   padding: 32px 40px;
-  background: linear-gradient(135deg, #f8f6f1 0%, #fdfbf7 100%);
+  background: linear-gradient(135deg, var(--surface) 0%, var(--paper) 100%);
   border: 1px solid var(--border);
   opacity: 0;
   animation: fadeInUp 0.8s ease-out 0.4s forwards;
@@ -235,7 +249,7 @@ h1 {
   padding: 16px 20px;
   font-family: "Work Sans", sans-serif;
   font-size: 16px;
-  background: white;
+  background: var(--on-accent);
   border: 2px solid var(--border);
   transition: all 0.2s ease;
 }
@@ -250,7 +264,7 @@ h1 {
   font-family: "Work Sans", sans-serif;
   font-size: 16px;
   font-weight: 500;
-  color: white;
+  color: var(--on-accent);
   letter-spacing: 0.02em;
   cursor: pointer;
   background: var(--accent);
@@ -259,7 +273,7 @@ h1 {
 }
 
 .submit-btn:hover {
-  background: #bf360c;
+  background: var(--accent-hover);
   transform: translateY(-1px);
 }
 
@@ -317,7 +331,7 @@ h1 {
   font-weight: 500;
   color: var(--ink);
   text-align: center;
-  background: linear-gradient(135deg, #f8f6f1 0%, #fdfbf7 100%);
+  background: linear-gradient(135deg, var(--surface) 0%, var(--paper) 100%);
   border: 1px solid var(--border);
   opacity: 0;
   transition: opacity 0.4s ease;
@@ -328,16 +342,16 @@ h1 {
 }
 
 .form-message.success {
-  color: #2d6a4f;
-  border-color: #95b8a1;
+  color: var(--success);
+  border-color: var(--success-border);
 }
 
 .form-message.error {
-  color: #a4161a;
-  border-color: #d4a5a5;
+  color: var(--error);
+  border-color: var(--error-border);
 }
 
 .form-message.info {
-  color: #1f4788;
-  border-color: #a8bfe0;
+  color: var(--info);
+  border-color: var(--info-border);
 }

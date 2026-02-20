@@ -1,4 +1,5 @@
 import type { worker } from "../../alchemy.run.ts";
+import { cssTokens, fontStack, googleFontsUrl } from "../lib/tokens.ts";
 import type { StoredEmail } from "../types.ts";
 
 function escapeHtml(str: string): string {
@@ -45,16 +46,10 @@ export async function handleWebView(
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>${escapeHtml(email.subject)}</title>
 	<style>
-		:root {
-			--ink: #1a1a1a;
-			--paper: #fdfbf7;
-			--accent: #d84315;
-			--muted: #6b7280;
-			--border: #e5dfd3;
-		}
+		${cssTokens}
 		* { margin: 0; padding: 0; box-sizing: border-box; }
 		body {
-			font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+			font-family: ${fontStack.sans};
 			background: var(--paper);
 			color: var(--ink);
 			line-height: 1.6;
@@ -66,7 +61,7 @@ export async function handleWebView(
 			border-bottom: 1px solid var(--border);
 		}
 		.header h1 {
-			font-family: 'Crimson Pro', serif;
+			font-family: ${fontStack.serif};
 			font-size: 1.75rem;
 			font-weight: 600;
 			margin-bottom: 0.5rem;
@@ -105,7 +100,9 @@ export async function handleWebView(
 			text-decoration: none;
 		}
 	</style>
-	<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Work+Sans:wght@400;500&display=swap" rel="stylesheet">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="${googleFontsUrl}" rel="stylesheet">
 </head>
 <body>
 	<header class="header">
