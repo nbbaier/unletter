@@ -33,7 +33,7 @@
   z-index: 1001;
   padding: 8px 16px;
   font-size: 14px;
-  color: var(--on-accent);
+  color: var(--paper);
   background: var(--ink);
 }
 
@@ -265,7 +265,7 @@ h1 {
   padding: 16px 20px;
   font-family: "Work Sans", sans-serif;
   font-size: 16px;
-  background: var(--on-accent);
+  background: var(--surface);
   border: 2px solid var(--border);
   transition:
     border-color 0.2s ease,
@@ -327,6 +327,27 @@ h1 {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e4de;
+    --paper: #1c1b18;
+    --accent-hover: #e8601f;
+    --muted: #b0aaa4;
+    --border: #36342f;
+    --surface: #242320;
+    --success: #5ec27a;
+    --success-border: #3a5e48;
+    --error: #f0948e;
+    --error-border: #5e3a3a;
+    --info: #7db4e0;
+    --info-border: #3a4a5e;
+  }
+
+  .grain {
+    opacity: 0.06;
   }
 }
 
