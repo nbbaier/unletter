@@ -5,8 +5,8 @@ const SALT_LENGTH = 16;
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
   }
   return btoa(binary);
 }
@@ -87,12 +87,14 @@ export async function verifyPassword(
     return false;
   }
 
-  let result = 0;
-  for (let i = 0; i < computedHashBase64.length; i++) {
-    result |= computedHashBase64.charCodeAt(i) ^ hashBase64.charCodeAt(i);
+  const computedChars = Array.from(computedHashBase64);
+  const hashChars = Array.from(hashBase64);
+  let diff = 0;
+  for (const [index, char] of computedChars.entries()) {
+    diff += Math.abs(char.charCodeAt(0) - hashChars[index].charCodeAt(0));
   }
 
-  return result === 0;
+  return diff === 0;
 }
 
 interface JWTPayload {

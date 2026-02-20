@@ -17,10 +17,11 @@ function validateConfig(config: RateLimitConfig): RateLimitConfig {
 }
 
 export class RateLimiterDO implements DurableObject {
-  constructor(
-    private state: DurableObjectState,
-    _env: Env
-  ) {}
+  private readonly state: DurableObjectState;
+
+  constructor(state: DurableObjectState, _env: Env) {
+    this.state = state;
+  }
 
   async fetch(request: Request): Promise<Response> {
     const rawConfig: RateLimitConfig = await request.json();
@@ -71,9 +72,7 @@ export class RateLimiterDO implements DurableObject {
       return new Response("Internal Server Error", { status: 500 });
     }
 
-    return new Response(JSON.stringify(result), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return Response.json(result);
   }
 
   async alarm() {

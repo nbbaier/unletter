@@ -102,6 +102,24 @@ const ALLOWED_ATTRIBUTES: Record<string, Set<string>> = {
 
 // Dangerous URL schemes to block
 const DANGEROUS_PROTOCOLS = /^(javascript|data|vbscript|file):/i;
+const TAG_WHITESPACE = /\s/;
+const TRAILING_SLASH = /\/$/;
+const ATTRIBUTE_PATTERN =
+  /([a-zA-Z-:]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+const SCRIPT_TAG_PATTERN = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/i;
+const INLINE_STYLE_PATTERN = /style\s*=\s*["'][^"']*["']/i;
+
+interface ParsedTag {
+  attributes: string;
+  isClosing: boolean;
+  isSelfClosing: boolean;
+  tagName: string;
+}
+
+interface ParsedAttribute {
+  name: string;
+  value: string;
+}
 
 /**
  * Sanitize a URL attribute value
@@ -112,28 +130,172 @@ function sanitizeUrl(url: string): string | null {
   }
 
   // Trim whitespace
-  url = url.trim();
+  const trimmedUrl = url.trim();
 
   // Block dangerous protocols
-  if (DANGEROUS_PROTOCOLS.test(url)) {
+  if (DANGEROUS_PROTOCOLS.test(trimmedUrl)) {
     return null;
   }
 
   // Allow relative URLs, http, https, mailto, tel
   if (
-    url.startsWith("//") ||
-    url.startsWith("http://") ||
-    url.startsWith("https://") ||
-    url.startsWith("mailto:") ||
-    url.startsWith("tel:") ||
-    url.startsWith("/") ||
-    url.startsWith("#") ||
-    !url.includes(":")
+    trimmedUrl.startsWith("//") ||
+    trimmedUrl.startsWith("http://") ||
+    trimmedUrl.startsWith("https://") ||
+    trimmedUrl.startsWith("mailto:") ||
+    trimmedUrl.startsWith("tel:") ||
+    trimmedUrl.startsWith("/") ||
+    trimmedUrl.startsWith("#") ||
+    !trimmedUrl.includes(":")
   ) {
-    return url;
+    return trimmedUrl;
   }
 
   return null;
+}
+
+function stripTrailingSlash(value: string): string {
+  return value.replace(TRAILING_SLASH, "");
+}
+
+function parseTagAt(
+  html: string,
+  tagStart: number
+): { nextIndex: number; tag: ParsedTag } | null {
+  const tagEnd = html.indexOf(">", tagStart);
+  if (tagEnd === -1) {
+    return null;
+  }
+
+  const tagContent = html.slice(tagStart + 1, tagEnd);
+  const isClosing = tagContent.startsWith("/");
+  const isSelfClosing = tagContent.endsWith("/") || html[tagEnd - 1] === "/";
+  const { tagName, attributes } = extractTagNameAndAttributes(
+    tagContent,
+    isClosing
+  );
+
+  return {
+    tag: {
+      tagName,
+      attributes,
+      isClosing,
+      isSelfClosing,
+    },
+    nextIndex: tagEnd + 1,
+  };
+}
+
+function extractTagNameAndAttributes(
+  tagContent: string,
+  isClosing: boolean
+): { attributes: string; tagName: string } {
+  if (isClosing) {
+    return {
+      tagName: tagContent.slice(1).split(TAG_WHITESPACE)[0].toLowerCase(),
+      attributes: "",
+    };
+  }
+
+  const spaceIndex = tagContent.search(TAG_WHITESPACE);
+  if (spaceIndex === -1) {
+    return {
+      tagName: stripTrailingSlash(tagContent).toLowerCase(),
+      attributes: "",
+    };
+  }
+
+  return {
+    tagName: tagContent.slice(0, spaceIndex).toLowerCase(),
+    attributes: stripTrailingSlash(tagContent.slice(spaceIndex + 1)).trim(),
+  };
+}
+
+function maybeSkipBlockedTagContent(
+  lowerHtml: string,
+  tag: ParsedTag,
+  searchStart: number
+): number | null {
+  if (tag.isClosing || (tag.tagName !== "script" && tag.tagName !== "style")) {
+    return null;
+  }
+
+  const endTag = `</${tag.tagName}>`;
+  const endIndex = lowerHtml.indexOf(endTag, searchStart);
+  if (endIndex === -1) {
+    return null;
+  }
+
+  return endIndex + endTag.length;
+}
+
+function closeAllowedTag(
+  result: string,
+  tagStack: string[],
+  tagName: string
+): string {
+  if (!ALLOWED_TAGS.has(tagName) || tagStack.length === 0) {
+    return result;
+  }
+
+  const stackIndex = tagStack.lastIndexOf(tagName);
+  if (stackIndex === -1) {
+    return result;
+  }
+
+  tagStack.splice(stackIndex, 1);
+  return `${result}</${tagName}>`;
+}
+
+function openAllowedTag(
+  result: string,
+  tagStack: string[],
+  tagName: string,
+  attributes: string,
+  isSelfClosing: boolean
+): string {
+  const sanitizedAttrs = sanitizeAttributes(tagName, attributes);
+  if (isSelfClosing) {
+    return `${result}<${tagName}${sanitizedAttrs} />`;
+  }
+
+  tagStack.push(tagName);
+  return `${result}<${tagName}${sanitizedAttrs}>`;
+}
+
+function appendParsedTag(
+  result: string,
+  tagStack: string[],
+  tag: ParsedTag
+): string {
+  if (tag.isClosing) {
+    return closeAllowedTag(result, tagStack, tag.tagName);
+  }
+
+  if (!ALLOWED_TAGS.has(tag.tagName)) {
+    return result;
+  }
+
+  return openAllowedTag(
+    result,
+    tagStack,
+    tag.tagName,
+    tag.attributes,
+    tag.isSelfClosing
+  );
+}
+
+function closeRemainingTags(result: string, tagStack: string[]): string {
+  let output = result;
+
+  while (tagStack.length > 0) {
+    const tag = tagStack.pop();
+    if (tag) {
+      output += `</${tag}>`;
+    }
+  }
+
+  return output;
 }
 
 /**
@@ -156,95 +318,41 @@ export function sanitizeHtml(html: string): string {
  */
 function parseAndSanitize(html: string): string {
   let result = "";
-  let i = 0;
+  let index = 0;
   const tagStack: string[] = [];
+  const lowerHtml = html.toLowerCase();
 
-  while (i < html.length) {
-    const char = html[i];
-
-    if (char === "<") {
-      // Parse tag
-      const tagEnd = html.indexOf(">", i);
-      if (tagEnd === -1) {
-        // Malformed HTML, break
-        break;
-      }
-
-      const tagContent = html.slice(i + 1, tagEnd);
-      const isClosing = tagContent.startsWith("/");
-      const isSelfClosing =
-        tagContent.endsWith("/") || html.slice(tagEnd - 1, tagEnd + 1) === "/>";
-
-      // Extract tag name and attributes
-      let tagName: string;
-      let attributes: string;
-
-      if (isClosing) {
-        tagName = tagContent.slice(1).split(/\s/)[0].toLowerCase();
-        attributes = "";
-      } else {
-        const spaceIndex = tagContent.search(/\s/);
-        if (spaceIndex === -1) {
-          tagName = tagContent.replace(/\/$/, "").toLowerCase();
-          attributes = "";
-        } else {
-          tagName = tagContent.slice(0, spaceIndex).toLowerCase();
-          attributes = tagContent
-            .slice(spaceIndex + 1)
-            .replace(/\/$/, "")
-            .trim();
-        }
-      }
-
-      // Handle the tag
-      if (isClosing) {
-        // Check if this is a tag we kept
-        if (ALLOWED_TAGS.has(tagName) && tagStack.length > 0) {
-          // Pop matching tag or closest allowed parent
-          const stackIndex = tagStack.lastIndexOf(tagName);
-          if (stackIndex !== -1) {
-            tagStack.splice(stackIndex, 1);
-            result += `</${tagName}>`;
-          }
-        }
-      } else if (ALLOWED_TAGS.has(tagName)) {
-        // Sanitize attributes
-        const sanitizedAttrs = sanitizeAttributes(tagName, attributes);
-
-        if (isSelfClosing) {
-          result += `<${tagName}${sanitizedAttrs} />`;
-        } else {
-          result += `<${tagName}${sanitizedAttrs}>`;
-          tagStack.push(tagName);
-        }
-      } else if (tagName === "script" || tagName === "style") {
-        // Skip content of script and style tags entirely
-        const endTag = `</${tagName}>`;
-        const endIndex = html.toLowerCase().indexOf(endTag, tagEnd);
-        if (endIndex !== -1) {
-          i = endIndex + endTag.length;
-          continue;
-        }
-      }
-      // Skip disallowed tags (don't add to result)
-
-      i = tagEnd + 1;
-    } else {
-      // Regular text content - escape it
-      result += escapeHtml(char);
-      i++;
+  while (index < html.length) {
+    const tagStart = html.indexOf("<", index);
+    if (tagStart === -1) {
+      result += escapeHtml(html.slice(index));
+      break;
     }
+
+    if (tagStart > index) {
+      result += escapeHtml(html.slice(index, tagStart));
+    }
+
+    const parsedTag = parseTagAt(html, tagStart);
+    if (!parsedTag) {
+      break;
+    }
+
+    const skipToIndex = maybeSkipBlockedTagContent(
+      lowerHtml,
+      parsedTag.tag,
+      parsedTag.nextIndex
+    );
+    if (skipToIndex !== null) {
+      index = skipToIndex;
+      continue;
+    }
+
+    result = appendParsedTag(result, tagStack, parsedTag.tag);
+    index = parsedTag.nextIndex;
   }
 
-  // Close any remaining open tags
-  while (tagStack.length > 0) {
-    const tag = tagStack.pop();
-    if (tag) {
-      result += `</${tag}>`;
-    }
-  }
-
-  return result;
+  return closeRemainingTags(result, tagStack);
 }
 
 /**
@@ -255,42 +363,73 @@ function sanitizeAttributes(tagName: string, attributes: string): string {
     return "";
   }
 
-  const allowedAttrs = new Set([
-    ...(ALLOWED_ATTRIBUTES["*"] || []),
-    ...(ALLOWED_ATTRIBUTES[tagName] || []),
-  ]);
+  const allowedAttrs = getAllowedAttributes(tagName);
+  const parsedAttributes = parseAttributes(attributes);
 
   let result = "";
-  const attrRegex =
-    /([a-zA-Z-:]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
-
-  for (
-    let match = attrRegex.exec(attributes);
-    match !== null;
-    match = attrRegex.exec(attributes)
-  ) {
-    const attrName = match[1].toLowerCase();
-    const attrValue = match[2] ?? match[3] ?? match[4] ?? "";
-
-    if (allowedAttrs.has(attrName)) {
-      // Special handling for URL attributes
-      if (attrName === "href" || attrName === "src") {
-        const sanitizedUrl = sanitizeUrl(attrValue);
-        if (sanitizedUrl) {
-          // Add security attributes for links
-          if (tagName === "a" && attrName === "href") {
-            result += ` ${attrName}="${escapeHtml(sanitizedUrl)}" target="_blank" rel="noopener noreferrer`;
-          } else {
-            result += ` ${attrName}="${escapeHtml(sanitizedUrl)}"`;
-          }
-        }
-      } else {
-        result += ` ${attrName}="${escapeHtml(attrValue)}"`;
-      }
-    }
+  for (const attribute of parsedAttributes) {
+    result += sanitizeAttribute(tagName, allowedAttrs, attribute);
   }
 
   return result;
+}
+
+function getAllowedAttributes(tagName: string): Set<string> {
+  return new Set([
+    ...(ALLOWED_ATTRIBUTES["*"] || []),
+    ...(ALLOWED_ATTRIBUTES[tagName] || []),
+  ]);
+}
+
+function parseAttributes(attributes: string): ParsedAttribute[] {
+  ATTRIBUTE_PATTERN.lastIndex = 0;
+  const parsed: ParsedAttribute[] = [];
+
+  for (
+    let match = ATTRIBUTE_PATTERN.exec(attributes);
+    match !== null;
+    match = ATTRIBUTE_PATTERN.exec(attributes)
+  ) {
+    parsed.push({
+      name: match[1].toLowerCase(),
+      value: match[2] ?? match[3] ?? match[4] ?? "",
+    });
+  }
+
+  return parsed;
+}
+
+function sanitizeAttribute(
+  tagName: string,
+  allowedAttrs: Set<string>,
+  attribute: ParsedAttribute
+): string {
+  if (!allowedAttrs.has(attribute.name)) {
+    return "";
+  }
+
+  if (attribute.name === "href" || attribute.name === "src") {
+    return sanitizeUrlAttribute(tagName, attribute.name, attribute.value);
+  }
+
+  return ` ${attribute.name}="${escapeHtml(attribute.value)}"`;
+}
+
+function sanitizeUrlAttribute(
+  tagName: string,
+  attributeName: string,
+  attributeValue: string
+): string {
+  const sanitizedUrl = sanitizeUrl(attributeValue);
+  if (!sanitizedUrl) {
+    return "";
+  }
+
+  if (tagName === "a" && attributeName === "href") {
+    return ` ${attributeName}="${escapeHtml(sanitizedUrl)}" target="_blank" rel="noopener noreferrer"`;
+  }
+
+  return ` ${attributeName}="${escapeHtml(sanitizedUrl)}"`;
 }
 
 /**
@@ -314,10 +453,8 @@ export function sanitizeEmailContent(html: string): {
   hasScript: boolean;
   hasInlineStyle: boolean;
 } {
-  const hasScript = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi.test(
-    html
-  );
-  const hasInlineStyle = /style\s*=\s*["'][^"']*["']/gi.test(html);
+  const hasScript = SCRIPT_TAG_PATTERN.test(html);
+  const hasInlineStyle = INLINE_STYLE_PATTERN.test(html);
 
   const sanitizedHtml = sanitizeHtml(html);
 

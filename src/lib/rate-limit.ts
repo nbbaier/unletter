@@ -14,10 +14,13 @@ export interface RateLimitResult {
  * @deprecated Use DurableRateLimiter instead for strict rate limiting.
  */
 export class RateLimiter {
-  constructor(
-    private kv: KVNamespace,
-    private config: RateLimitConfig
-  ) {}
+  private readonly kv: KVNamespace;
+  private readonly config: RateLimitConfig;
+
+  constructor(kv: KVNamespace, config: RateLimitConfig) {
+    this.kv = kv;
+    this.config = config;
+  }
 
   /**
    * Check if a request is allowed under the rate limit.
@@ -65,10 +68,13 @@ export class RateLimiter {
 }
 
 export class DurableRateLimiter {
-  constructor(
-    private namespace: DurableObjectNamespace,
-    private config: RateLimitConfig
-  ) {}
+  private readonly namespace: DurableObjectNamespace;
+  private readonly config: RateLimitConfig;
+
+  constructor(namespace: DurableObjectNamespace, config: RateLimitConfig) {
+    this.namespace = namespace;
+    this.config = config;
+  }
 
   /**
    * Check if a request is allowed under the rate limit using Durable Objects.

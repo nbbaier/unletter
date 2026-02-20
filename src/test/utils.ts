@@ -17,18 +17,20 @@ export function createMockEnv(): MockEnv {
 
   const createKVNamespace = (store: Map<string, string>): KVNamespace =>
     ({
-      get: async (key: string) => store.get(key) || null,
-      put: async (key: string, value: string) => {
+      get: (key: string) => Promise.resolve(store.get(key) || null),
+      put: (key: string, value: string) => {
         store.set(key, value);
+        return Promise.resolve();
       },
-      delete: async (key: string) => {
+      delete: (key: string) => {
         store.delete(key);
+        return Promise.resolve();
       },
-      list: async () => {
+      list: () => {
         const keys = Array.from(store.keys()).map((name) => ({ name }));
-        return { keys, list_complete: true, cursor: "" };
+        return Promise.resolve({ keys, list_complete: true, cursor: "" });
       },
-      getWithMetadata: async () => ({ value: null, metadata: null }),
+      getWithMetadata: () => Promise.resolve({ value: null, metadata: null }),
     }) as unknown as KVNamespace;
 
   return {

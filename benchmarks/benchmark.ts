@@ -18,8 +18,9 @@ class MockKV {
     return this.store.get(key) || null;
   }
 
-  async put(key: string, value: string): Promise<void> {
+  put(key: string, value: string): Promise<void> {
     this.store.set(key, value);
+    return Promise.resolve();
   }
 }
 
@@ -41,7 +42,7 @@ async function runBenchmark() {
 
   await mockData.put(`feed:${feedId}`, JSON.stringify(feed));
 
-  const emailIds = [];
+  const emailIds: string[] = [];
   const numEmails = 50;
   for (let i = 0; i < numEmails; i++) {
     const emailId = `email${i}`;
