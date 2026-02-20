@@ -1,5 +1,5 @@
 {
-  "name": "unletter-worker-prod",
+  "name": "unletter-worker-dev",
   "main": "src/worker.ts",
   "compatibility_date": "2026-02-13",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,13 +10,13 @@
   "kv_namespaces": [
     {
       "binding": "WAITLIST",
-      "id": "25c4de292e31452bba7555b6928d8288",
-      "preview_id": "25c4de292e31452bba7555b6928d8288"
+      "id": "waitlist",
+      "preview_id": "waitlist"
     },
     {
       "binding": "DATA",
-      "id": "c14743cb61dc4d09a4991ebfac7bf01c",
-      "preview_id": "c14743cb61dc4d09a4991ebfac7bf01c"
+      "id": "data",
+      "preview_id": "data"
     }
   ],
   "durable_objects": {
@@ -24,7 +24,7 @@
       {
         "name": "RATE_LIMITER",
         "class_name": "RateLimiterDO",
-        "script_name": "unletter-worker-prod"
+        "script_name": "unletter-worker-dev"
       }
     ]
   },
