@@ -1,22 +1,38 @@
 {
-	"name": "unletter-worker-nbbaier",
-	"main": "src/worker.ts",
-	"compatibility_date": "2025-12-02",
-	"compatibility_flags": [],
-	"assets": {
-		"directory": "src/assets",
-		"binding": "ASSETS"
-	},
-	"kv_namespaces": [
-		{
-			"binding": "WAITLIST",
-			"id": "waitlist",
-			"preview_id": "waitlist"
-		},
-		{
-			"binding": "DATA",
-			"id": "data",
-			"preview_id": "data"
-		}
-	]
+  "name": "unletter-worker-prod",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-02-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "src/assets",
+    "binding": "ASSETS"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "WAITLIST",
+      "id": "25c4de292e31452bba7555b6928d8288",
+      "preview_id": "25c4de292e31452bba7555b6928d8288"
+    },
+    {
+      "binding": "DATA",
+      "id": "c14743cb61dc4d09a4991ebfac7bf01c",
+      "preview_id": "c14743cb61dc4d09a4991ebfac7bf01c"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RATE_LIMITER",
+        "class_name": "RateLimiterDO",
+        "script_name": "unletter-worker-prod"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [],
+      "new_classes": ["RateLimiterDO"]
+    }
+  ]
 }

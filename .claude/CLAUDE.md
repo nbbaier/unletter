@@ -1,102 +1,8 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-Unletter is a newsletter-to-RSS conversion service built on Cloudflare Workers using Alchemy for infrastructure-as-code. Currently in landing page phase with waitlist functionality. The service will eventually convert email newsletters into persistent RSS feeds.
-
-## Development Commands
-
-```bash
-# Install dependencies
-bun install
-
-# Local development server
-bun run dev
-
-# Deploy to Cloudflare
-bun run deploy
-
-# Type checking
-bun run build
-
-# Linting
-bun run lint          # Check for issues
-bun run lint:fix      # Auto-fix issues
-
-# Destroy all infrastructure
-bun run destroy
-```
-
-## Architecture
-
-### Infrastructure (`alchemy.run.ts`)
-
-The project uses Alchemy to define Cloudflare infrastructure as TypeScript code. The main worker is configured with:
-
--  **Static Assets**: HTML/CSS/images served from `src/assets/`
--  **KV Namespace**: `WAITLIST` binding for storing email signups
--  **Secrets**: `ADMIN_API_KEY` for admin endpoint authentication
--  **Domain**: Configured for `unletter.app`
--  **State Store**: Uses CloudflareStateStore for production deployments
-
-### Worker (`src/worker.ts`)
-
-The Cloudflare Worker handles three routes:
-
-1. **POST /api/waitlist**: Email signup endpoint
-
-   -  Validates email format
-   -  Stores entries in KV with metadata (timestamp, user agent, referrer)
-   -  Returns 409 if email already exists
-
-2. **GET /admin/waitlist**: Admin endpoint
-
-   -  Requires Bearer token authentication via `ADMIN_API_KEY`
-   -  Returns all waitlist entries sorted by timestamp (newest first)
-   -  Format: `{ total: number, emails: WaitlistEntry[] }`
-
-3. **All other routes**: Serves static assets from `ASSETS` binding
-
-### Type Safety
-
-The project uses `types/env.d.ts` to provide full type safety for Cloudflare Worker bindings. All environment variables and bindings are typed through `typeof worker.Env` exported from `alchemy.run.ts`.
-
-### Code Style
-
--  **Formatter**: Biome with tab indentation and double quotes
--  **TypeScript**: Strict mode enabled, ESNext target
--  **Imports**: Auto-organized by Biome
-
-## Key Files
-
--  `alchemy.run.ts` - Infrastructure definition (must end with `app.finalize()`)
--  `src/worker.ts` - Worker request handler with API routes
--  `src/assets/` - Static HTML, CSS, images
--  `types/env.d.ts` - Type definitions for Worker environment bindings
--  `biome.json` - Linter and formatter configuration
-
-## Environment Variables
-
-Set in `.env` for local development:
-
--  `ALCHEMY_PASSWORD` - Required for encrypting secrets
--  `ADMIN_API_KEY` - Bearer token for admin endpoint
-
-## Important Patterns
-
-1. **Worker bindings are type-safe**: Import `worker.Env` type from `alchemy.run.ts`
-2. **Always call `app.finalize()`**: Required at end of `alchemy.run.ts` to clean up resources
-3. **KV keys are emails**: Direct email-to-entry mapping in WAITLIST namespace
-4. **CORS enabled**: All API responses include `access-control-allow-origin: *`
-
-
-## Ultracite Code Standards
+# Ultracite Code Standards
 
 This project uses **Ultracite**, a zero-config preset that enforces strict code quality standards through automated formatting and linting.
 
-### Quick Reference
+## Quick Reference
 
 - **Format code**: `bun x ultracite fix`
 - **Check for issues**: `bun x ultracite check`
@@ -106,11 +12,11 @@ Biome (the underlying engine) provides robust linting and formatting. Most issue
 
 ---
 
-### Core Principles
+## Core Principles
 
 Write code that is **accessible, performant, type-safe, and maintainable**. Focus on clarity and explicit intent over brevity.
 
-#### Type Safety & Explicitness
+### Type Safety & Explicitness
 
 - Use explicit types for function parameters and return values when they enhance clarity
 - Prefer `unknown` over `any` when the type is genuinely unknown
@@ -118,7 +24,7 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 - Leverage TypeScript's type narrowing instead of type assertions
 - Use meaningful variable names instead of magic numbers - extract constants with descriptive names
 
-#### Modern JavaScript/TypeScript
+### Modern JavaScript/TypeScript
 
 - Use arrow functions for callbacks and short functions
 - Prefer `for...of` loops over `.forEach()` and indexed `for` loops
@@ -127,14 +33,14 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 - Use destructuring for object and array assignments
 - Use `const` by default, `let` only when reassignment is needed, never `var`
 
-#### Async & Promises
+### Async & Promises
 
 - Always `await` promises in async functions - don't forget to use the return value
 - Use `async/await` syntax instead of promise chains for better readability
 - Handle errors appropriately in async code with try-catch blocks
 - Don't use async functions as Promise executors
 
-#### React & JSX
+### React & JSX
 
 - Use function components over class components
 - Call hooks at the top level only, never conditionally
@@ -149,14 +55,14 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
   - Include keyboard event handlers alongside mouse events
   - Use semantic elements (`<button>`, `<nav>`, etc.) instead of divs with roles
 
-#### Error Handling & Debugging
+### Error Handling & Debugging
 
 - Remove `console.log`, `debugger`, and `alert` statements from production code
 - Throw `Error` objects with descriptive messages, not strings or other values
 - Use `try-catch` blocks meaningfully - don't catch errors just to rethrow them
 - Prefer early returns over nested conditionals for error cases
 
-#### Code Organization
+### Code Organization
 
 - Keep functions focused and under reasonable cognitive complexity limits
 - Extract complex conditions into well-named boolean variables
@@ -164,14 +70,14 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 - Prefer simple conditionals over nested ternary operators
 - Group related code together and separate concerns
 
-#### Security
+### Security
 
 - Add `rel="noopener"` when using `target="_blank"` on links
 - Avoid `dangerouslySetInnerHTML` unless absolutely necessary
 - Don't use `eval()` or assign directly to `document.cookie`
 - Validate and sanitize user input
 
-#### Performance
+### Performance
 
 - Avoid spread syntax in accumulators within loops
 - Use top-level regex literals instead of creating them in loops
@@ -179,7 +85,7 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 - Avoid barrel files (index files that re-export everything)
 - Use proper image components (e.g., Next.js `<Image>`) over `<img>` tags
 
-#### Framework-Specific Guidance
+### Framework-Specific Guidance
 
 **Next.js:**
 - Use Next.js `<Image>` component for images
@@ -194,14 +100,14 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 
 ---
 
-### Testing
+## Testing
 
 - Write assertions inside `it()` or `test()` blocks
 - Avoid done callbacks in async tests - use async/await instead
 - Don't use `.only` or `.skip` in committed code
 - Keep test suites reasonably flat - avoid excessive `describe` nesting
 
-### When Biome Can't Help
+## When Biome Can't Help
 
 Biome's linter will catch most issues automatically. Focus your attention on:
 

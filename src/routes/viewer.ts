@@ -2,43 +2,43 @@ import type { worker } from "../../alchemy.run.ts";
 import type { StoredEmail } from "../types.ts";
 
 function escapeHtml(str: string): string {
-	return str
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 export async function handleWebView(
-	env: typeof worker.Env,
-	feedId: string,
-	emailId: string,
+  env: typeof worker.Env,
+  feedId: string,
+  emailId: string
 ): Promise<Response> {
-	try {
-		// Get email
-		const emailData = await env.DATA.get(`email:${emailId}`);
-		if (!emailData) {
-			return new Response("Email not found", { status: 404 });
-		}
+  try {
+    // Get email
+    const emailData = await env.DATA.get(`email:${emailId}`);
+    if (!emailData) {
+      return new Response("Email not found", { status: 404 });
+    }
 
-		const email: StoredEmail = JSON.parse(emailData);
+    const email: StoredEmail = JSON.parse(emailData);
 
-		// Verify email belongs to this feed
-		if (email.feedId !== feedId) {
-			return new Response("Email not found", { status: 404 });
-		}
+    // Verify email belongs to this feed
+    if (email.feedId !== feedId) {
+      return new Response("Email not found", { status: 404 });
+    }
 
-		// Format date
-		const date = new Date(email.timestamp).toLocaleDateString("en-US", {
-			weekday: "long",
-			year: "numeric",
-			month: "long",
-			day: "numeric",
-		});
+    // Format date
+    const date = new Date(email.timestamp).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
-		// Build HTML page
-		const html = `<!DOCTYPE html>
+    // Build HTML page
+    const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
@@ -125,17 +125,17 @@ export async function handleWebView(
 </body>
 </html>`;
 
-		return new Response(html, {
-			headers: {
-				"content-type": "text/html; charset=utf-8",
-				"cache-control": "public, max-age=3600",
-				// CSP to mitigate XSS from newsletter HTML content
-				"content-security-policy":
-					"default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src * data:; frame-src 'none';",
-			},
-		});
-	} catch (error) {
-		console.error("Web view error:", error);
-		return new Response("Error loading email", { status: 500 });
-	}
+    return new Response(html, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "public, max-age=3600",
+        // CSP to mitigate XSS from newsletter HTML content
+        "content-security-policy":
+          "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src * data:; frame-src 'none';",
+      },
+    });
+  } catch (error) {
+    console.error("Web view error:", error);
+    return new Response("Error loading email", { status: 500 });
+  }
 }
