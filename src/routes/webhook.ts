@@ -1,12 +1,17 @@
+import { Hono } from "hono";
 import type { worker } from "../../alchemy.run.ts";
 import { extractWebViewLink } from "../lib/patterns.ts";
 import { jsonResponse } from "../lib/response.ts";
 import { sanitizeEmailContent } from "../lib/sanitize.ts";
 import type { InboundWebhookPayload, StoredEmail } from "../types.ts";
 
+type WorkerEnv = typeof worker.Env;
+
+export const webhookRoutes = new Hono<{ Bindings: WorkerEnv }>();
+
 export async function handleInboundWebhook(
   request: Request,
-  env: typeof worker.Env
+  env: WorkerEnv
 ): Promise<Response> {
   // Verify webhook signature
   const webhookToken = request.headers.get("x-webhook-verification-token");
@@ -89,3 +94,5 @@ export async function handleInboundWebhook(
     return jsonResponse({ error: "Failed to process webhook" }, 500);
   }
 }
+
+webhookRoutes.post("/inbound", (c) => handleInboundWebhook(c.req.raw, c.env));

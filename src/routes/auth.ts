@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import type { worker } from "../../alchemy.run.ts";
@@ -16,9 +17,13 @@ import { jsonResponse } from "../lib/response.ts";
 import { getFirstError, LoginSchema, SignupSchema } from "../lib/schemas.ts";
 import type { User } from "../types.ts";
 
+type WorkerEnv = typeof worker.Env;
+
+export const authRoutes = new Hono<{ Bindings: WorkerEnv }>();
+
 export async function handleSignup(
   request: Request,
-  env: typeof worker.Env
+  env: WorkerEnv
 ): Promise<Response> {
   // Rate limiting: 3 signups per hour per IP
   const clientIP = getClientIP(request);
@@ -82,7 +87,7 @@ export async function handleSignup(
 
 export async function handleLogin(
   request: Request,
-  env: typeof worker.Env
+  env: WorkerEnv
 ): Promise<Response> {
   // Rate limiting: 5 login attempts per minute per IP
   const clientIP = getClientIP(request);
@@ -141,7 +146,7 @@ export async function handleLogin(
 // Auth middleware helper
 export async function authenticateRequest(
   request: Request,
-  env: typeof worker.Env
+  env: WorkerEnv
 ): Promise<{ userId: string } | Response> {
   const authHeader = request.headers.get("authorization");
 
@@ -158,3 +163,6 @@ export async function authenticateRequest(
 
   return { userId: result.userId };
 }
+
+authRoutes.post("/signup", (c) => handleSignup(c.req.raw, c.env));
+authRoutes.post("/login", (c) => handleLogin(c.req.raw, c.env));
