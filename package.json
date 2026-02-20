@@ -18,12 +18,12 @@
     "fix": "ultracite fix"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.0",
-    "@cloudflare/workers-types": "^4.20260214.0",
-    "@types/node": "^25.2.3",
+    "@biomejs/biome": "2.4.3",
+    "@cloudflare/workers-types": "^4.20260227.0",
+    "@types/node": "^25.3.0",
     "@vitest/coverage-v8": "^4.0.18",
-    "alchemy": "0.84.0",
-    "miniflare": "^4.20260212.0",
+    "alchemy": "0.85.1",
+    "miniflare": "^4.20260219.0",
     "typescript": "^5.9.3",
     "ultracite": "7.2.3",
     "vibe-rules": "^0.3.91",

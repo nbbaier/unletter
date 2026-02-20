@@ -74,7 +74,7 @@ export async function handleListFeeds(
     const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
     const feedIds: string[] = userFeedsData ? JSON.parse(userFeedsData) : [];
 
-    const feeds: Array<Omit<Feed, "userId">> = [];
+    const feeds: Omit<Feed, "userId">[] = [];
 
     const feedDataList = await Promise.all(
       feedIds.map((feedId) => env.DATA.get(`feed:${feedId}`))

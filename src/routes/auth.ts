@@ -145,7 +145,7 @@ export async function authenticateRequest(
 ): Promise<{ userId: string } | Response> {
   const authHeader = request.headers.get("authorization");
 
-  if (!(authHeader && authHeader.startsWith("Bearer "))) {
+  if (!authHeader?.startsWith("Bearer ")) {
     return jsonResponse({ error: "Authorization required" }, 401);
   }
 
