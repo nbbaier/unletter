@@ -4,7 +4,7 @@
   "description": "Alchemy Typescript Project",
   "type": "module",
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsgo -b",
     "dev": "alchemy dev --stage dev",
     "deploy": "alchemy deploy --stage prod",
     "destroy": "alchemy destroy",
@@ -15,12 +15,14 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "check": "ultracite check",
-    "fix": "ultracite fix"
+    "fix": "ultracite fix",
+    "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.3",
     "@cloudflare/workers-types": "^4.20260227.0",
     "@types/node": "^25.3.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260220.1",
     "@vitest/coverage-v8": "^4.0.18",
     "alchemy": "0.85.1",
     "miniflare": "^4.20260219.0",
