@@ -36,6 +36,7 @@
   </head>
 
   <body>
+    <a class="skip-link" href="#signup">Skip to signup</a>
     <div class="grain"></div>
 
     <main class="container">
@@ -49,7 +50,7 @@
       </header>
 
       <section class="steps">
-        <div class="steps-header">How it works</div>
+        <h2 class="steps-header">How it works</h2>
 
         <div class="step">
           <div class="step-number"><span>1</span></div>
@@ -100,21 +101,34 @@
         </div>
       </section>
 
-      <section class="signup">
+      <section class="signup" id="signup">
         <h2>Get early access</h2>
         <p>We're launching soon. Join the waitlist to be notified.</p>
 
-        <form class="signup-form" onsubmit="_handleSubmit(event)">
+        <form class="signup-form" id="signupForm">
+          <label for="emailInput" class="sr-only">Email address</label>
           <input
             type="email"
+            id="emailInput"
             class="email-input"
             placeholder="your@email.com"
             required
-            aria-label="Email address"
+            autocomplete="email"
           >
           <button type="submit" class="submit-btn">Get Notified</button>
         </form>
-        <div class="form-message" id="formMessage"></div>
+        <div
+          class="form-message"
+          id="formMessage"
+          role="status"
+          aria-live="polite"
+        ></div>
+        <noscript>
+          <p class="form-message info" style="opacity: 1">
+            JavaScript is required to join the waitlist. Please enable it and
+            reload.
+          </p>
+        </noscript>
       </section>
 
       <footer class="footer">
@@ -124,82 +138,78 @@
 
     <script>
     "use strict";
-    async function _handleSubmit(event) {
-      event.preventDefault();
-      const form = event.target;
-      const input = form.querySelector(".email-input");
+    (() => {
+      const form = document.getElementById("signupForm");
+      const input = document.getElementById("emailInput");
       const button = form.querySelector(".submit-btn");
       const messageEl = document.getElementById("formMessage");
-      const email = input.value;
 
-      // Clear any previous messages
-      messageEl.textContent = "";
-      messageEl.className = "form-message";
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const email = input.value;
 
-      // Disable form during submission
-      button.disabled = true;
-      input.disabled = true;
-      button.textContent = "Joining...";
+        // Clear any previous messages
+        messageEl.textContent = "";
+        messageEl.className = "form-message";
 
-      try {
-        const response = await fetch("/api/waitlist", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
+        // Disable form during submission
+        button.disabled = true;
+        input.disabled = true;
+        button.textContent = "Joining...";
 
-        const data = await response.json();
+        try {
+          const response = await fetch("/api/waitlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
 
-        if (response.ok) {
-          // Success (201)
-          button.textContent = "You're on the list!";
-          messageEl.textContent = "✓ Successfully added to waitlist!";
-          messageEl.className = "form-message success";
-          setTimeout(() => {
-            button.textContent = "Thank you!";
-          }, 1000);
-          // Fade out message after 2.5 seconds
-          setTimeout(() => {
-            messageEl.style.opacity = "0";
-          }, 2500);
-        } else if (response.status === 409) {
-          // Already exists - duplicate email
-          button.textContent = "Already signed up";
-          messageEl.textContent = `✓ ${data.message}`;
-          messageEl.className = "form-message info";
+          const data = await response.json();
 
-          // Fade out message after 2.5 seconds
-          setTimeout(() => {
-            messageEl.style.opacity = "0";
-          }, 2500);
+          if (response.ok) {
+            button.textContent = "You're on the list!";
+            messageEl.textContent = "Successfully added to waitlist!";
+            messageEl.className = "form-message success";
+            setTimeout(() => {
+              button.textContent = "Thank you!";
+            }, 1000);
+            setTimeout(() => {
+              messageEl.style.opacity = "0";
+            }, 2500);
+          } else if (response.status === 409) {
+            button.textContent = "Already signed up";
+            messageEl.textContent = data.message;
+            messageEl.className = "form-message info";
 
-          // Re-enable and reset after 3 seconds
-          setTimeout(() => {
+            setTimeout(() => {
+              messageEl.style.opacity = "0";
+            }, 2500);
+
+            setTimeout(() => {
+              button.disabled = false;
+              input.disabled = false;
+              button.textContent = "Get Notified";
+              input.value = "";
+              messageEl.textContent = "";
+              messageEl.style.opacity = "";
+              input.focus();
+            }, 3000);
+          } else {
+            button.textContent = "Try again";
+            messageEl.textContent = data.error || "Something went wrong";
+            messageEl.className = "form-message error";
             button.disabled = false;
             input.disabled = false;
-            button.textContent = "Get Notified";
-            input.value = "";
-            messageEl.textContent = "";
-            messageEl.style.opacity = "";
-            input.focus();
-          }, 3000);
-        } else {
-          // Other errors (400, 500, etc)
+          }
+        } catch (_) {
           button.textContent = "Try again";
-          messageEl.textContent = `⚠ ${data.error || "Something went wrong"}`;
+          messageEl.textContent = "Network error — please try again";
           messageEl.className = "form-message error";
           button.disabled = false;
           input.disabled = false;
         }
-      } catch (error) {
-        console.error("Signup error:", error);
-        button.textContent = "Try again";
-        messageEl.textContent = "⚠ Network error - please try again";
-        messageEl.className = "form-message error";
-        button.disabled = false;
-        input.disabled = false;
-      }
-    }
+      });
+    })();
     </script>
   </body>
 </html>
