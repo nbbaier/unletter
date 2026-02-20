@@ -1,4 +1,5 @@
 import { Feed as RSSFeed } from "feed";
+import { Hono } from "hono";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import type { worker } from "../../alchemy.run.ts";
@@ -6,10 +7,16 @@ import { jsonResponse } from "../lib/response.ts";
 import { CreateFeedSchema, getFirstError } from "../lib/schemas.ts";
 import type { Feed, StoredEmail } from "../types.ts";
 import { authenticateRequest } from "./auth.ts";
+import { handleWebView } from "./viewer.ts";
+
+type WorkerEnv = typeof worker.Env;
+
+export const apiFeedRoutes = new Hono<{ Bindings: WorkerEnv }>();
+export const publicFeedRoutes = new Hono<{ Bindings: WorkerEnv }>();
 
 export async function handleCreateFeed(
   request: Request,
-  env: typeof worker.Env
+  env: WorkerEnv
 ): Promise<Response> {
   const auth = await authenticateRequest(request, env);
   if (auth instanceof Response) {
@@ -63,7 +70,7 @@ export async function handleCreateFeed(
 
 export async function handleListFeeds(
   request: Request,
-  env: typeof worker.Env
+  env: WorkerEnv
 ): Promise<Response> {
   const auth = await authenticateRequest(request, env);
   if (auth instanceof Response) {
@@ -101,7 +108,7 @@ export async function handleListFeeds(
 
 export async function handleDeleteFeed(
   request: Request,
-  env: typeof worker.Env,
+  env: WorkerEnv,
   feedId: string
 ): Promise<Response> {
   const auth = await authenticateRequest(request, env);
@@ -158,7 +165,7 @@ export async function handleDeleteFeed(
 }
 
 export async function handleGetFeed(
-  env: typeof worker.Env,
+  env: WorkerEnv,
   feedId: string,
   format: "rss" | "atom"
 ): Promise<Response> {
@@ -231,3 +238,22 @@ export async function handleGetFeed(
     return jsonResponse({ error: "Failed to generate feed" }, 500);
   }
 }
+
+apiFeedRoutes.post("/", (c) => handleCreateFeed(c.req.raw, c.env));
+apiFeedRoutes.get("/", (c) => handleListFeeds(c.req.raw, c.env));
+apiFeedRoutes.delete("/:feedId", (c) =>
+  handleDeleteFeed(c.req.raw, c.env, c.req.param("feedId"))
+);
+
+publicFeedRoutes.get("/:feedId/view/:emailId", (c) =>
+  handleWebView(c.env, c.req.param("feedId"), c.req.param("emailId"))
+);
+publicFeedRoutes.get("/:feedId/atom", (c) =>
+  handleGetFeed(c.env, c.req.param("feedId"), "atom")
+);
+publicFeedRoutes.get("/:feedId/rss", (c) =>
+  handleGetFeed(c.env, c.req.param("feedId"), "rss")
+);
+publicFeedRoutes.get("/:feedId", (c) =>
+  handleGetFeed(c.env, c.req.param("feedId"), "rss")
+);

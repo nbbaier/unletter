@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { z } from "zod";
 import type { worker } from "../../alchemy.run.ts";
 import {
@@ -15,9 +16,14 @@ interface WaitlistEntry {
   userAgent: string;
 }
 
+type WorkerEnv = typeof worker.Env;
+
+export const waitlistRoutes = new Hono<{ Bindings: WorkerEnv }>();
+export const adminWaitlistRoutes = new Hono<{ Bindings: WorkerEnv }>();
+
 export async function handleWaitlistSignup(
   request: Request,
-  env: typeof worker.Env
+  env: WorkerEnv
 ): Promise<Response> {
   // Rate limiting: 5 waitlist signups per hour per IP
   const clientIP = getClientIP(request);
@@ -61,7 +67,7 @@ export async function handleWaitlistSignup(
 
 export async function handleAdminList(
   request: Request,
-  env: typeof worker.Env
+  env: WorkerEnv
 ): Promise<Response> {
   const authHeader = request.headers.get("authorization");
   const expectedKey = env.ADMIN_API_KEY;
@@ -114,3 +120,6 @@ export async function handleAdminList(
     return jsonResponse({ error: "Failed to fetch waitlist" }, 500);
   }
 }
+
+waitlistRoutes.post("/", (c) => handleWaitlistSignup(c.req.raw, c.env));
+adminWaitlistRoutes.get("/waitlist", (c) => handleAdminList(c.req.raw, c.env));
