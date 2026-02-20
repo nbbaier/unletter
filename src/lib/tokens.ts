@@ -8,7 +8,7 @@ export const cssTokens = `
 	--paper: #fdfbf7;
 	--accent: #d84315;
 	--accent-hover: #bf360c;
-	--muted: #6b7280;
+	--muted: #4f555d;
 	--border: #e5dfd3;
 	--surface: #f8f6f1;
 	--on-accent: #fff;
