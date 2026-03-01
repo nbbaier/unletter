@@ -81,6 +81,10 @@ export async function handleInboundWebhook(
 		emailIds.unshift(emailId);
 		await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify(emailIds));
 
+		// Invalidate feed cache
+		await env.DATA.delete(`feed:${feedId}:rss`);
+		await env.DATA.delete(`feed:${feedId}:atom`);
+
 		console.log(`Stored email ${emailId} for feed ${feedId}`);
 
 		return jsonResponse({ success: true, emailId });

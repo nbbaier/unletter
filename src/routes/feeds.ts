@@ -126,12 +126,17 @@ export async function handleDeleteFeed(
 		);
 		const failures = results.filter((r) => r.status === "rejected");
 		if (failures.length > 0) {
-			console.error(`Failed to delete ${failures.length}/${emailIds.length} emails for feed ${feedId}`);
+			console.error(
+				`Failed to delete ${failures.length}/${emailIds.length} emails for feed ${feedId}`,
+			);
 		}
 
 		// Always clean up feed metadata and user index
 		await env.DATA.delete(`feed:${feedId}`);
 		await env.DATA.delete(`feed:${feedId}:emails`);
+		// Clean up cache
+		await env.DATA.delete(`feed:${feedId}:rss`);
+		await env.DATA.delete(`feed:${feedId}:atom`);
 
 		// Remove from user's feed list
 		const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
@@ -154,6 +159,25 @@ export async function handleGetFeed(
 	feedId: string,
 	format: "rss" | "atom",
 ): Promise<Response> {
+	const contentType =
+		format === "atom"
+			? "application/atom+xml; charset=utf-8"
+			: "application/rss+xml; charset=utf-8";
+
+	// Try to get from cache
+	const cacheKey = `feed:${feedId}:${format}`;
+	const cachedFeed = await env.DATA.get(cacheKey);
+
+	if (cachedFeed) {
+		return new Response(cachedFeed, {
+			headers: {
+				"content-type": contentType,
+				"cache-control": "public, max-age=300",
+				"access-control-allow-origin": "*",
+			},
+		});
+	}
+
 	try {
 		// Get feed metadata
 		const feedData = await env.DATA.get(`feed:${feedId}`);
@@ -204,12 +228,10 @@ export async function handleGetFeed(
 			});
 		}
 
-		const contentType =
-			format === "atom"
-				? "application/atom+xml; charset=utf-8"
-				: "application/rss+xml; charset=utf-8";
-
 		const output = format === "atom" ? rssFeed.atom1() : rssFeed.rss2();
+
+		// Cache the output (1 week TTL as safety net)
+		await env.DATA.put(cacheKey, output, { expirationTtl: 604800 });
 
 		return new Response(output, {
 			headers: {
