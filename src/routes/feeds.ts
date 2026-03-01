@@ -35,8 +35,15 @@ export async function handleCreateFeed(
 
 		// Update user's feed list
 		const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
-		const userFeeds: string[] = userFeedsData ? JSON.parse(userFeedsData) : [];
-		userFeeds.push(feedId);
+		const userFeeds: Array<string | Omit<Feed, "userId">> = userFeedsData
+			? JSON.parse(userFeedsData)
+			: [];
+		userFeeds.push({
+			id: feed.id,
+			name: feed.name,
+			emailAddress: feed.emailAddress,
+			createdAt: feed.createdAt,
+		});
 		await env.DATA.put(`user:${auth.userId}:feeds`, JSON.stringify(userFeeds));
 
 		return jsonResponse(
@@ -68,25 +75,32 @@ export async function handleListFeeds(
 
 	try {
 		const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
-		const feedIds: string[] = userFeedsData ? JSON.parse(userFeedsData) : [];
+		const userFeeds: Array<string | Omit<Feed, "userId">> = userFeedsData
+			? JSON.parse(userFeedsData)
+			: [];
 
-		const feeds: Array<Omit<Feed, "userId">> = [];
-
-		const feedDataList = await Promise.all(
-			feedIds.map((feedId) => env.DATA.get(`feed:${feedId}`)),
+		const feedsResults = await Promise.all(
+			userFeeds.map(async (item) => {
+				if (typeof item === "string") {
+					const feedData = await env.DATA.get(`feed:${item}`);
+					if (feedData) {
+						const feed: Feed = JSON.parse(feedData);
+						return {
+							id: feed.id,
+							name: feed.name,
+							emailAddress: feed.emailAddress,
+							createdAt: feed.createdAt,
+						};
+					}
+					return null;
+				}
+				return item;
+			}),
 		);
 
-		for (const feedData of feedDataList) {
-			if (feedData) {
-				const feed: Feed = JSON.parse(feedData);
-				feeds.push({
-					id: feed.id,
-					name: feed.name,
-					emailAddress: feed.emailAddress,
-					createdAt: feed.createdAt,
-				});
-			}
-		}
+		const feeds = feedsResults.filter(
+			(f): f is Omit<Feed, "userId"> => f !== null,
+		);
 
 		return jsonResponse({ feeds });
 	} catch (error) {
@@ -135,8 +149,15 @@ export async function handleDeleteFeed(
 
 		// Remove from user's feed list
 		const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
-		const userFeeds: string[] = userFeedsData ? JSON.parse(userFeedsData) : [];
-		const updatedFeeds = userFeeds.filter((id) => id !== feedId);
+		const userFeeds: Array<string | Omit<Feed, "userId">> = userFeedsData
+			? JSON.parse(userFeedsData)
+			: [];
+		const updatedFeeds = userFeeds.filter((item) => {
+			if (typeof item === "string") {
+				return item !== feedId;
+			}
+			return item.id !== feedId;
+		});
 		await env.DATA.put(
 			`user:${auth.userId}:feeds`,
 			JSON.stringify(updatedFeeds),
