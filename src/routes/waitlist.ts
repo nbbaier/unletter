@@ -53,7 +53,9 @@ export async function handleWaitlistSignup(
       referrer: request.headers.get("referer") || "direct",
     };
 
-    await env.WAITLIST.put(email, JSON.stringify(entry));
+    await env.WAITLIST.put(email, JSON.stringify(entry), {
+      metadata: entry,
+    });
 
     return jsonResponse({ message: "Successfully added to waitlist!" }, 201);
   } catch (error) {
@@ -88,12 +90,18 @@ export async function handleAdminList(
     let cursor: string | undefined;
 
     while (!listComplete) {
-      const list = await env.WAITLIST.list({ cursor });
+      const list = await env.WAITLIST.list({ cursor, metadata: true });
       listComplete = list.list_complete;
       cursor = list.list_complete ? undefined : list.cursor;
 
       const batchResults = await Promise.all(
         list.keys.map(async (key) => {
+          // Optimization: check if entry is available in metadata to avoid N+1 queries
+          if (key.metadata) {
+            return key.metadata as WaitlistEntry;
+          }
+
+          // Fallback for entries created before metadata optimization
           const value = await env.WAITLIST.get(key.name);
           return value ? (JSON.parse(value) as WaitlistEntry) : null;
         })

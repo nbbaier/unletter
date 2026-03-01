@@ -7,6 +7,7 @@ const mockEnv = {
       keys: Array.from({ length: 100 }, (_, i) => ({
         name: `user${i}@example.com`,
       })),
+      list_complete: true,
     }),
     get: async (key: string) => {
       // Simulate network latency
@@ -39,6 +40,7 @@ async function runBenchmark() {
 
   const end = performance.now();
   console.log(`Benchmark completed in ${(end - start).toFixed(2)}ms`);
+  process.exit(0);
 }
 
 runBenchmark();
