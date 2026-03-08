@@ -3,6 +3,7 @@ import { handleSignup } from "../routes/auth.ts";
 import {
   handleCreateFeed,
   handleDeleteFeed,
+  handleGetFeed,
   handleListFeeds,
 } from "../routes/feeds.ts";
 import { createMockEnv } from "./utils.ts";
@@ -171,6 +172,50 @@ describe("Feed Management API", () => {
       expect(response.status).toBe(200);
       const data = (await response.json()) as { message: string };
       expect(data.message).toBe("Feed deleted");
+    });
+  });
+
+  describe("handleGetFeed", () => {
+    it("should return 304 when etag matches", async () => {
+      const env = createMockEnv();
+      const feedId = "etag-feed";
+
+      await env.DATA.put(
+        `feed:${feedId}`,
+        JSON.stringify({
+          id: feedId,
+          userId: "user-1",
+          name: "ETag Test Feed",
+          emailAddress: `${feedId}@unletter.app`,
+          createdAt: new Date().toISOString(),
+        })
+      );
+      await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify([]));
+
+      const firstResponse = await handleGetFeed(
+        new Request(`http://localhost/feeds/${feedId}/rss`),
+        env,
+        feedId,
+        "rss"
+      );
+
+      expect(firstResponse.status).toBe(200);
+      const etag = firstResponse.headers.get("etag");
+      expect(etag).toBeTruthy();
+
+      const secondResponse = await handleGetFeed(
+        new Request(`http://localhost/feeds/${feedId}/rss`, {
+          headers: {
+            "if-none-match": etag || "",
+          },
+        }),
+        env,
+        feedId,
+        "rss"
+      );
+
+      expect(secondResponse.status).toBe(304);
+      expect(secondResponse.headers.get("etag")).toBe(etag);
     });
   });
 });

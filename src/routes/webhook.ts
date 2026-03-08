@@ -6,6 +6,7 @@ import { sanitizeEmailContent } from "../lib/sanitize.ts";
 import type { InboundWebhookPayload, StoredEmail } from "../types.ts";
 
 type WorkerEnv = typeof worker.Env;
+export const MAX_EMAILS_PER_FEED = 200;
 
 export const webhookRoutes = new Hono<{ Bindings: WorkerEnv }>();
 
@@ -38,6 +39,15 @@ export async function handleInboundWebhook(
       return jsonResponse({ error: "Feed not found" }, 404);
     }
 
+    const emailId = payload.email.id;
+
+    // Idempotency: inbound providers may retry delivery with the same message ID.
+    // We treat replays as success to avoid duplicate feed items.
+    const existingEmail = await env.DATA.get(`email:${emailId}`);
+    if (existingEmail) {
+      return jsonResponse({ success: true, emailId, duplicate: true });
+    }
+
     // Extract sender info
     const fromAddress = payload.email.from.addresses[0];
     const fromName = fromAddress?.name || "";
@@ -62,7 +72,6 @@ export async function handleInboundWebhook(
     }
 
     // Create stored email with sanitized content
-    const emailId = payload.email.id;
     const storedEmail: StoredEmail = {
       id: emailId,
       feedId,
@@ -83,8 +92,28 @@ export async function handleInboundWebhook(
       env.DATA.get(`feed:${feedId}:emails`),
     ]);
     const emailIds: string[] = emailListData ? JSON.parse(emailListData) : [];
-    emailIds.unshift(emailId);
-    await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify(emailIds));
+
+    // Keep ID list unique and bounded to avoid unbounded KV growth.
+    const dedupedIds = [emailId, ...emailIds.filter((id) => id !== emailId)];
+    const retainedIds = dedupedIds.slice(0, MAX_EMAILS_PER_FEED);
+    const staleIds = dedupedIds.slice(MAX_EMAILS_PER_FEED);
+
+    await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify(retainedIds));
+
+    if (staleIds.length > 0) {
+      const cleanupResults = await Promise.allSettled(
+        staleIds.map((staleId) => env.DATA.delete(`email:${staleId}`))
+      );
+      const cleanupFailures = cleanupResults.filter(
+        (result) => result.status === "rejected"
+      );
+
+      if (cleanupFailures.length > 0) {
+        console.error(
+          `Failed to clean up ${cleanupFailures.length}/${staleIds.length} stale emails for feed ${feedId}`
+        );
+      }
+    }
 
     console.log(`Stored email ${emailId} for feed ${feedId}`);
 

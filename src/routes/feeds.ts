@@ -165,6 +165,7 @@ export async function handleDeleteFeed(
 }
 
 export async function handleGetFeed(
+  request: Request,
   env: WorkerEnv,
   feedId: string,
   format: "rss" | "atom"
@@ -183,6 +184,21 @@ export async function handleGetFeed(
     const emailIds: string[] = emailListData
       ? JSON.parse(emailListData).slice(0, 50)
       : [];
+
+    const latestId = emailIds[0] || "empty";
+    const etag = `W/"${feedId}:${format}:${latestId}:${emailIds.length}"`;
+    const ifNoneMatch = request.headers.get("if-none-match");
+
+    if (ifNoneMatch === etag) {
+      return new Response(null, {
+        status: 304,
+        headers: {
+          etag,
+          "cache-control": "public, max-age=300",
+          "access-control-allow-origin": "*",
+        },
+      });
+    }
 
     // Fetch emails
     const emailDataPromises = emailIds.map((id) => env.DATA.get(`email:${id}`));
@@ -230,6 +246,7 @@ export async function handleGetFeed(
       headers: {
         "content-type": contentType,
         "cache-control": "public, max-age=300",
+        etag,
         "access-control-allow-origin": "*",
       },
     });
@@ -249,11 +266,11 @@ publicFeedRoutes.get("/:feedId/view/:emailId", (c) =>
   handleWebView(c.env, c.req.param("feedId"), c.req.param("emailId"))
 );
 publicFeedRoutes.get("/:feedId/atom", (c) =>
-  handleGetFeed(c.env, c.req.param("feedId"), "atom")
+  handleGetFeed(c.req.raw, c.env, c.req.param("feedId"), "atom")
 );
 publicFeedRoutes.get("/:feedId/rss", (c) =>
-  handleGetFeed(c.env, c.req.param("feedId"), "rss")
+  handleGetFeed(c.req.raw, c.env, c.req.param("feedId"), "rss")
 );
 publicFeedRoutes.get("/:feedId", (c) =>
-  handleGetFeed(c.env, c.req.param("feedId"), "rss")
+  handleGetFeed(c.req.raw, c.env, c.req.param("feedId"), "rss")
 );
