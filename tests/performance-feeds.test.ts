@@ -1,15 +1,12 @@
-import { describe, expect, mock, test } from "bun:test";
-import { handleListFeeds } from "../src/routes/feeds";
-
-// Mock authenticateRequest
-mock.module("../src/routes/auth", () => ({
-  authenticateRequest: async () => ({ userId: "test-user" }),
-}));
+import { describe, expect, test } from "vitest";
+import { createToken } from "../src/lib/auth.ts";
+import { handleListFeeds } from "../src/routes/feeds.ts";
 
 // Mock user feeds and feed data
 const USER_ID = "test-user";
 const FEED_COUNT = 50;
 const DELAY_MS = 10;
+const JWT_SECRET = "performance-test-secret-key-with-32-characters";
 
 const mockData = new Map<string, string>();
 
@@ -31,6 +28,7 @@ for (let i = 0; i < FEED_COUNT; i++) {
 mockData.set(`user:${USER_ID}:feeds`, JSON.stringify(feedIds));
 
 const mockEnv = {
+  JWT_SECRET,
   DATA: {
     get: async (key: string) => {
       await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
@@ -41,9 +39,14 @@ const mockEnv = {
 
 describe("Performance Baseline", () => {
   test("measure handleListFeeds performance", async () => {
+    const token = await createToken(USER_ID, JWT_SECRET);
     const start = performance.now();
     const response = await handleListFeeds(
-      new Request("http://localhost/feeds"),
+      new Request("http://localhost/feeds", {
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      }),
       mockEnv
     );
     const end = performance.now();

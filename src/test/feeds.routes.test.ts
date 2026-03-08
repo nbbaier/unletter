@@ -70,6 +70,32 @@ describe("Feed Management API", () => {
       expect(data.feed.emailAddress).toContain("@");
     });
 
+    it("should use configured inbound email domain", async () => {
+      const env = createMockEnv();
+      env.INBOUND_EMAIL_DOMAIN = "letters.example.com";
+      const token = await createTestUserAndGetToken(env);
+
+      const request = createMockRequest(
+        "POST",
+        { name: "Domain Feed" },
+        {
+          Authorization: `Bearer ${token}`,
+        }
+      );
+
+      const response = await handleCreateFeed(request, env);
+      expect(response.status).toBe(201);
+      const data = (await response.json()) as {
+        feed: {
+          emailAddress: string;
+        };
+      };
+
+      expect(data.feed.emailAddress.endsWith("@letters.example.com")).toBe(
+        true
+      );
+    });
+
     it("should reject feed creation without auth", async () => {
       const env = createMockEnv();
       const request = createMockRequest("POST", { name: "Test Feed" });
@@ -92,6 +118,38 @@ describe("Feed Management API", () => {
       const response = await handleCreateFeed(request, env);
 
       expect(response.status).toBe(401);
+    });
+
+    it("should reject feed creation beyond max feed quota", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+
+      for (let index = 0; index < 25; index += 1) {
+        const response = await handleCreateFeed(
+          createMockRequest(
+            "POST",
+            { name: `Feed ${index}` },
+            {
+              Authorization: `Bearer ${token}`,
+            }
+          ),
+          env
+        );
+        expect(response.status).toBe(201);
+      }
+
+      const quotaResponse = await handleCreateFeed(
+        createMockRequest(
+          "POST",
+          { name: "Feed 26" },
+          {
+            Authorization: `Bearer ${token}`,
+          }
+        ),
+        env
+      );
+
+      expect(quotaResponse.status).toBe(409);
     });
   });
 

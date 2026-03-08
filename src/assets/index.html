@@ -115,6 +115,16 @@
 
         <form class="signup-form" id="signupForm">
           <label for="emailInput" class="sr-only">Email address</label>
+          <label for="websiteInput" class="sr-only">Company website</label>
+          <input
+            type="text"
+            id="websiteInput"
+            class="hp-field"
+            autocomplete="off"
+            tabindex="-1"
+            aria-hidden="true"
+          >
+          <input type="hidden" id="turnstileTokenInput" value="">
           <input
             type="email"
             id="emailInput"
@@ -149,12 +159,18 @@
     (() => {
       const form = document.getElementById("signupForm");
       const input = document.getElementById("emailInput");
+      const websiteInput = document.getElementById("websiteInput");
+      const turnstileTokenInput = document.getElementById(
+        "turnstileTokenInput"
+      );
       const button = form.querySelector(".submit-btn");
       const messageEl = document.getElementById("formMessage");
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const email = input.value;
+        const website = websiteInput.value;
+        const turnstileToken = turnstileTokenInput.value;
 
         // Clear any previous messages
         messageEl.textContent = "";
@@ -169,7 +185,7 @@
           const response = await fetch("/api/waitlist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({ email, website, turnstileToken }),
           });
 
           const data = await response.json();

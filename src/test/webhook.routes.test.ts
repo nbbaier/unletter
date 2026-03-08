@@ -30,6 +30,20 @@ function createWebhookPayload(emailId: string, feedId: string) {
   };
 }
 
+async function seedFeed(env: ReturnType<typeof createMockEnv>, feedId: string) {
+  await env.DATA.put(
+    `feed:${feedId}`,
+    JSON.stringify({
+      id: feedId,
+      userId: "user-1",
+      name: "Test Feed",
+      emailAddress: `${feedId}@${env.INBOUND_EMAIL_DOMAIN}`,
+      createdAt: new Date().toISOString(),
+    })
+  );
+  await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify([]));
+}
+
 function createWebhookRequest(payload: unknown, secret: string): Request {
   return new Request("http://localhost/api/webhook/inbound", {
     method: "POST",
@@ -45,18 +59,7 @@ describe("Webhook Routes", () => {
   it("should treat duplicate webhook deliveries as idempotent", async () => {
     const env = createMockEnv();
     const feedId = "feed-idempotent";
-
-    await env.DATA.put(
-      `feed:${feedId}`,
-      JSON.stringify({
-        id: feedId,
-        userId: "user-1",
-        name: "Idempotent Feed",
-        emailAddress: `${feedId}@unletter.app`,
-        createdAt: new Date().toISOString(),
-      })
-    );
-    await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify([]));
+    await seedFeed(env, feedId);
 
     const payload = createWebhookPayload("email-duplicate", feedId);
     const firstResponse = await handleInboundWebhook(
@@ -83,18 +86,7 @@ describe("Webhook Routes", () => {
   it("should cap retained emails per feed and delete stale records", async () => {
     const env = createMockEnv();
     const feedId = "feed-retention";
-
-    await env.DATA.put(
-      `feed:${feedId}`,
-      JSON.stringify({
-        id: feedId,
-        userId: "user-1",
-        name: "Retention Feed",
-        emailAddress: `${feedId}@unletter.app`,
-        createdAt: new Date().toISOString(),
-      })
-    );
-    await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify([]));
+    await seedFeed(env, feedId);
 
     const totalEmails = MAX_EMAILS_PER_FEED + 5;
     for (let index = 0; index < totalEmails; index += 1) {
@@ -119,5 +111,48 @@ describe("Webhook Routes", () => {
     const retainedBoundaryEmail = await env.DATA.get("email:email-5");
     expect(staleEmail).toBeNull();
     expect(retainedBoundaryEmail).toBeTruthy();
+  });
+
+  it("should reject invalid webhook token", async () => {
+    const env = createMockEnv();
+    const feedId = "feed-auth";
+    await seedFeed(env, feedId);
+
+    const response = await handleInboundWebhook(
+      createWebhookRequest(
+        createWebhookPayload("email-auth", feedId),
+        "wrong-token"
+      ),
+      env
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  it("should reject webhook payloads with invalid recipient domain", async () => {
+    const env = createMockEnv();
+    const feedId = "feed-domain";
+    await seedFeed(env, feedId);
+
+    const payload = createWebhookPayload("email-domain", feedId);
+    payload.email.recipient = `${feedId}@evil.example`;
+
+    const response = await handleInboundWebhook(
+      createWebhookRequest(payload, env.WEBHOOK_SECRET),
+      env
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("should reject malformed webhook payloads", async () => {
+    const env = createMockEnv();
+
+    const response = await handleInboundWebhook(
+      createWebhookRequest({ nope: true }, env.WEBHOOK_SECRET),
+      env
+    );
+
+    expect(response.status).toBe(400);
   });
 });

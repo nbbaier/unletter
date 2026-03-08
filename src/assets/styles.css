@@ -53,6 +53,16 @@
   clip: rect(0, 0, 0, 0);
 }
 
+.hp-field {
+  position: absolute;
+  top: 0;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  opacity: 0;
+}
+
 body {
   overflow-x: hidden;
   font-family: "Work Sans", sans-serif;

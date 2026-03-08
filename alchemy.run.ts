@@ -48,6 +48,9 @@ export const worker = await Worker("worker", {
     JWT_SECRET: alchemy.secret(
       process.env.JWT_SECRET || "change-me-in-production"
     ),
+    APP_BASE_URL: process.env.APP_BASE_URL || "https://unletter.app",
+    INBOUND_EMAIL_DOMAIN: process.env.INBOUND_EMAIL_DOMAIN || "unletter.app",
+    TURNSTILE_SECRET: alchemy.secret(process.env.TURNSTILE_SECRET || ""),
   },
   domains: process.env.PULL_REQUEST
     ? undefined

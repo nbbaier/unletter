@@ -8,6 +8,7 @@ import {
 } from "../lib/rate-limit.ts";
 import { jsonResponse } from "../lib/response.ts";
 import { getFirstError, WaitlistSchema } from "../lib/schemas.ts";
+import { timingSafeEqual } from "../lib/security.ts";
 
 interface WaitlistEntry {
   email: string;
@@ -20,6 +21,41 @@ type WorkerEnv = typeof worker.Env;
 
 export const waitlistRoutes = new Hono<{ Bindings: WorkerEnv }>();
 export const adminWaitlistRoutes = new Hono<{ Bindings: WorkerEnv }>();
+
+async function verifyTurnstileToken(
+  token: string,
+  remoteIP: string,
+  secret: string
+): Promise<boolean> {
+  const formData = new URLSearchParams();
+  formData.set("secret", secret);
+  formData.set("response", token);
+  if (remoteIP !== "unknown") {
+    formData.set("remoteip", remoteIP);
+  }
+
+  try {
+    const response = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+      }
+    );
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const result = (await response.json()) as { success?: boolean };
+    return result.success === true;
+  } catch {
+    return false;
+  }
+}
 
 export async function handleWaitlistSignup(
   request: Request,
@@ -39,7 +75,29 @@ export async function handleWaitlistSignup(
 
   try {
     const body = await request.json();
-    const { email } = WaitlistSchema.parse(body);
+    const { email, turnstileToken, website } = WaitlistSchema.parse(body);
+
+    // Honeypot trap for basic bots. Return a success-like response to avoid adaptation.
+    if (website && website.trim() !== "") {
+      return jsonResponse({ message: "Successfully added to waitlist!" }, 201);
+    }
+
+    const turnstileSecret = env.TURNSTILE_SECRET?.trim() || "";
+    if (turnstileSecret !== "") {
+      if (!turnstileToken) {
+        return jsonResponse({ error: "Bot verification required" }, 400);
+      }
+
+      const isTurnstileValid = await verifyTurnstileToken(
+        turnstileToken,
+        clientIP,
+        turnstileSecret
+      );
+
+      if (!isTurnstileValid) {
+        return jsonResponse({ error: "Bot verification failed" }, 400);
+      }
+    }
 
     const existing = await env.WAITLIST.get(email);
     if (existing) {
@@ -78,7 +136,11 @@ export async function handleAdminList(
     return jsonResponse({ error: "Server misconfigured" }, 500);
   }
 
-  if (authHeader !== `Bearer ${expectedKey}`) {
+  const providedKey = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : "";
+
+  if (!timingSafeEqual(providedKey, expectedKey)) {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
 

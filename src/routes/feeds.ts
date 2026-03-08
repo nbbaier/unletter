@@ -10,6 +10,11 @@ import { authenticateRequest } from "./auth.ts";
 import { handleWebView } from "./viewer.ts";
 
 type WorkerEnv = typeof worker.Env;
+const MAX_FEEDS_PER_USER = 25;
+
+function trimTrailingSlash(url: string): string {
+  return url.endsWith("/") ? url.slice(0, -1) : url;
+}
 
 export const apiFeedRoutes = new Hono<{ Bindings: WorkerEnv }>();
 export const publicFeedRoutes = new Hono<{ Bindings: WorkerEnv }>();
@@ -27,8 +32,18 @@ export async function handleCreateFeed(
     const body = await request.json();
     const { name } = CreateFeedSchema.parse(body);
 
+    const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
+    const userFeeds: string[] = userFeedsData ? JSON.parse(userFeedsData) : [];
+
+    if (userFeeds.length >= MAX_FEEDS_PER_USER) {
+      return jsonResponse(
+        { error: `Feed limit reached (${MAX_FEEDS_PER_USER} max per account)` },
+        409
+      );
+    }
+
     const feedId = nanoid(10);
-    const emailAddress = `${feedId}@unletter.app`;
+    const emailAddress = `${feedId}@${env.INBOUND_EMAIL_DOMAIN}`;
 
     const feed: Feed = {
       id: feedId,
@@ -43,8 +58,6 @@ export async function handleCreateFeed(
     await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify([]));
 
     // Update user's feed list
-    const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
-    const userFeeds: string[] = userFeedsData ? JSON.parse(userFeedsData) : [];
     userFeeds.push(feedId);
     await env.DATA.put(`user:${auth.userId}:feeds`, JSON.stringify(userFeeds));
 
@@ -178,6 +191,7 @@ export async function handleGetFeed(
     }
 
     const feed: Feed = JSON.parse(feedData);
+    const baseUrl = trimTrailingSlash(env.APP_BASE_URL);
 
     // Get email list (limit to 50 most recent)
     const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
@@ -215,8 +229,8 @@ export async function handleGetFeed(
     const rssFeed = new RSSFeed({
       title: feed.name,
       description: `Newsletter feed: ${feed.name}`,
-      id: `https://unletter.app/feeds/${feedId}`,
-      link: `https://unletter.app/feeds/${feedId}`,
+      id: `${baseUrl}/feeds/${feedId}`,
+      link: `${baseUrl}/feeds/${feedId}`,
       language: "en",
       updated: emails.length > 0 ? new Date(emails[0].timestamp) : new Date(),
       generator: "unletter",
@@ -226,8 +240,8 @@ export async function handleGetFeed(
     for (const email of emails) {
       rssFeed.addItem({
         title: email.subject,
-        id: `https://unletter.app/feeds/${feedId}/view/${email.id}`,
-        link: `https://unletter.app/feeds/${feedId}/view/${email.id}`,
+        id: `${baseUrl}/feeds/${feedId}/view/${email.id}`,
+        link: `${baseUrl}/feeds/${feedId}/view/${email.id}`,
         description: email.text.slice(0, 500),
         content: email.html,
         author: [{ name: email.from.name || email.from.email }],
