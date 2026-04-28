@@ -5,7 +5,7 @@ concurrency:
    group: publish
    cancel-in-progress: false
 jobs:
-   publish:
+   log:
       runs-on: ubuntu-latest
       permissions:
          contents: read
