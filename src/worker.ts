@@ -80,6 +80,11 @@ app.use("*", async (c, next) => {
   await next();
 
   const durationMs = Date.now() - startTime;
+  c.res = new Response(c.res.body, {
+    headers: c.res.headers,
+    status: c.res.status,
+    statusText: c.res.statusText,
+  });
   c.res.headers.set("x-request-id", requestID);
 
   console.log(
