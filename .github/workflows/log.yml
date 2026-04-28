@@ -1,8 +1,6 @@
 name: Log
 on:
-   push:
-      branches:
-         - workflow_dispatch
+   workflow_dispatch: 
 concurrency:
    group: publish
    cancel-in-progress: false
