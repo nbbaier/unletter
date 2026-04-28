@@ -7,6 +7,10 @@
     "directory": "src/assets",
     "binding": "ASSETS"
   },
+  "vars": {
+    "APP_BASE_URL": "https://unletter.app",
+    "INBOUND_EMAIL_DOMAIN": "unletter.app"
+  },
   "kv_namespaces": [
     {
       "binding": "WAITLIST",
