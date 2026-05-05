@@ -34,6 +34,9 @@ const mockEnv = {
       await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
       return mockData.get(key) || null;
     },
+    put: async (key: string, value: string) => {
+      mockData.set(key, value);
+    },
   },
 } as unknown as Parameters<typeof handleListFeeds>[1];
 
@@ -55,6 +58,50 @@ describe("Performance Baseline", () => {
     console.log("\n\n--- Performance Result ---");
     console.log(
       `Time taken to fetch ${FEED_COUNT} feeds with ${DELAY_MS}ms latency per fetch: ${duration.toFixed(2)}ms`
+    );
+    console.log("--------------------------\n");
+
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as { feeds: unknown[] };
+    expect(data.feeds).toHaveLength(FEED_COUNT);
+  });
+});
+
+// Populate denormalized data
+const denormalizedFeeds: {
+  id: string;
+  name: string;
+  emailAddress: string;
+  createdAt: string;
+}[] = [];
+for (let i = 0; i < FEED_COUNT; i++) {
+  denormalizedFeeds.push({
+    id: `feed-${i}`,
+    name: `Feed ${i}`,
+    emailAddress: `feed${i}@example.com`,
+    createdAt: new Date().toISOString(),
+  });
+}
+mockData.set(`user:${USER_ID}_denorm:feeds`, JSON.stringify(denormalizedFeeds));
+
+describe("Performance Optimized", () => {
+  test("measure handleListFeeds performance with denormalization", async () => {
+    const token = await createToken(`${USER_ID}_denorm`, JWT_SECRET);
+    const start = performance.now();
+    const response = await handleListFeeds(
+      new Request("http://localhost/feeds", {
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      }),
+      mockEnv
+    );
+    const end = performance.now();
+
+    const duration = end - start;
+    console.log("\n\n--- Performance Result (Optimized) ---");
+    console.log(
+      `Time taken to fetch ${FEED_COUNT} denormalized feeds: ${duration.toFixed(2)}ms`
     );
     console.log("--------------------------\n");
 
