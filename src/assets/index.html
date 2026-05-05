@@ -108,7 +108,27 @@
           </div>
         </div>
       </section>
+      <section class="reader-fit" aria-labelledby="reader-fit-title">
+        <h2 id="reader-fit-title">Use the reader you already trust.</h2>
 
+        <div class="benefit-list">
+          <div class="benefit">
+            <h3>Locked to one product</h3>
+            <p>
+              Feedbin and Readwise can take newsletters in, but only inside
+              their platforms—and often on paid tiers.
+            </p>
+          </div>
+
+          <div class="benefit">
+            <h3>Open RSS feeds</h3>
+            <p>
+              unletter turns each newsletter into standard RSS for NetNewsWire,
+              Reeder, Miniflux, Feedly, or any reader you choose.
+            </p>
+          </div>
+        </div>
+      </section>
       <section class="signup" id="signup">
         <h2>Get early access</h2>
         <p>We're launching soon. Join the waitlist to be notified.</p>
@@ -225,7 +245,8 @@
             button.disabled = false;
             input.disabled = false;
           }
-        } catch (_) {
+        } catch (error) {
+          console.error(error);
           button.textContent = "Try again";
           messageEl.textContent = "Network error — please try again";
           messageEl.className = "form-message error";
