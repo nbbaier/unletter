@@ -180,6 +180,10 @@ export async function handleInboundWebhook(
     await env.DATA.put(`email:${emailId}`, JSON.stringify(storedEmail));
     await updateFeedEmailIndex(env, feedId, emailId);
 
+    // Invalidate feed cache
+    await env.DATA.delete(`feed:${feedId}:rss`);
+    await env.DATA.delete(`feed:${feedId}:atom`);
+
     return jsonResponse({ success: true, emailId });
   } catch (error) {
     if (error instanceof z.ZodError) {

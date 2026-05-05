@@ -200,6 +200,9 @@ export async function handleDeleteFeed(
     // Always clean up feed metadata and user index
     await env.DATA.delete(`feed:${feedId}`);
     await env.DATA.delete(`feed:${feedId}:emails`);
+    // Clean up cache
+    await env.DATA.delete(`feed:${feedId}:rss`);
+    await env.DATA.delete(`feed:${feedId}:atom`);
 
     // Remove from user's feed list
     const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
@@ -228,18 +231,22 @@ export async function handleGetFeed(
   feedId: string,
   format: "rss" | "atom"
 ): Promise<Response> {
+  const contentType =
+    format === "atom"
+      ? "application/atom+xml; charset=utf-8"
+      : "application/rss+xml; charset=utf-8";
+
   try {
-    // Get feed metadata
-    const feedData = await env.DATA.get(`feed:${feedId}`);
+    // Get feed metadata and email list upfront to compute etag
+    const [feedData, emailListData] = await Promise.all([
+      env.DATA.get(`feed:${feedId}`),
+      env.DATA.get(`feed:${feedId}:emails`),
+    ]);
+
     if (!feedData) {
       return jsonResponse({ error: "Feed not found" }, 404);
     }
 
-    const feed: Feed = JSON.parse(feedData);
-    const baseUrl = trimTrailingSlash(env.APP_BASE_URL);
-
-    // Get email list (limit to 50 most recent)
-    const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
     const emailIds: string[] = emailListData
       ? JSON.parse(emailListData).slice(0, 50)
       : [];
@@ -258,6 +265,25 @@ export async function handleGetFeed(
         },
       });
     }
+
+    // Include the etag in the cache key so stale generators cannot overwrite
+    // the cache entry for the latest feed version after invalidation.
+    const cacheKey = `feed:${feedId}:${format}:${encodeURIComponent(etag)}`;
+    const cachedFeed = await env.DATA.get(cacheKey);
+
+    if (cachedFeed) {
+      return new Response(cachedFeed, {
+        headers: {
+          "content-type": contentType,
+          "cache-control": "public, max-age=300",
+          etag,
+          "access-control-allow-origin": "*",
+        },
+      });
+    }
+
+    const feed: Feed = JSON.parse(feedData);
+    const baseUrl = trimTrailingSlash(env.APP_BASE_URL);
 
     // Fetch emails
     const emailDataPromises = emailIds.map((id) => env.DATA.get(`email:${id}`));
@@ -294,12 +320,10 @@ export async function handleGetFeed(
       });
     }
 
-    const contentType =
-      format === "atom"
-        ? "application/atom+xml; charset=utf-8"
-        : "application/rss+xml; charset=utf-8";
-
     const output = format === "atom" ? rssFeed.atom1() : rssFeed.rss2();
+
+    // Cache the output (1 week TTL as safety net)
+    await env.DATA.put(cacheKey, output, { expirationTtl: 604_800 });
 
     return new Response(output, {
       headers: {
