@@ -111,7 +111,7 @@ export async function handleWaitlistSignup(
       referrer: request.headers.get("referer") || "direct",
     };
 
-    await env.WAITLIST.put(email, JSON.stringify(entry));
+    await env.WAITLIST.put(email, JSON.stringify(entry), { metadata: entry });
 
     return jsonResponse({ message: "Successfully added to waitlist!" }, 201);
   } catch (error) {
@@ -156,8 +156,22 @@ export async function handleAdminList(
 
       const batchResults = await Promise.all(
         list.keys.map(async (key) => {
+          if (key.metadata) {
+            return key.metadata as WaitlistEntry;
+          }
+
           const value = await env.WAITLIST.get(key.name);
-          return value ? (JSON.parse(value) as WaitlistEntry) : null;
+          if (!value) {
+            return null;
+          }
+
+          const parsed = JSON.parse(value) as WaitlistEntry;
+
+          // Lazy migration: add metadata for next time
+          // Await this to ensure it completes in the Worker environment
+          await env.WAITLIST.put(key.name, value, { metadata: parsed });
+
+          return parsed;
         })
       );
 
