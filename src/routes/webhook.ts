@@ -87,9 +87,14 @@ async function updateFeedEmailIndex(
   const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
   const emailIds: string[] = emailListData ? JSON.parse(emailListData) : [];
 
-  const dedupedIds = [emailId, ...emailIds.filter((id) => id !== emailId)];
-  const retainedIds = dedupedIds.slice(0, MAX_EMAILS_PER_FEED);
-  const staleIds = dedupedIds.slice(MAX_EMAILS_PER_FEED);
+  const existingIndex = emailIds.indexOf(emailId);
+  if (existingIndex !== -1) {
+    emailIds.splice(existingIndex, 1);
+  }
+  emailIds.unshift(emailId);
+
+  const retainedIds = emailIds.slice(0, MAX_EMAILS_PER_FEED);
+  const staleIds = emailIds.slice(MAX_EMAILS_PER_FEED);
 
   await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify(retainedIds));
 
