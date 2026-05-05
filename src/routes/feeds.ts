@@ -191,32 +191,17 @@ export async function handleGetFeed(
       ? "application/atom+xml; charset=utf-8"
       : "application/rss+xml; charset=utf-8";
 
-  // Try to get from cache
-  const cacheKey = `feed:${feedId}:${format}`;
-  const cachedFeed = await env.DATA.get(cacheKey);
-
-  if (cachedFeed) {
-    return new Response(cachedFeed, {
-      headers: {
-        "content-type": contentType,
-        "cache-control": "public, max-age=300",
-        "access-control-allow-origin": "*",
-      },
-    });
-  }
-
   try {
-    // Get feed metadata
-    const feedData = await env.DATA.get(`feed:${feedId}`);
+    // Get feed metadata and email list upfront to compute etag
+    const [feedData, emailListData] = await Promise.all([
+      env.DATA.get(`feed:${feedId}`),
+      env.DATA.get(`feed:${feedId}:emails`),
+    ]);
+
     if (!feedData) {
       return jsonResponse({ error: "Feed not found" }, 404);
     }
 
-    const feed: Feed = JSON.parse(feedData);
-    const baseUrl = trimTrailingSlash(env.APP_BASE_URL);
-
-    // Get email list (limit to 50 most recent)
-    const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
     const emailIds: string[] = emailListData
       ? JSON.parse(emailListData).slice(0, 50)
       : [];
@@ -235,6 +220,24 @@ export async function handleGetFeed(
         },
       });
     }
+
+    // Try to get from cache
+    const cacheKey = `feed:${feedId}:${format}`;
+    const cachedFeed = await env.DATA.get(cacheKey);
+
+    if (cachedFeed) {
+      return new Response(cachedFeed, {
+        headers: {
+          "content-type": contentType,
+          "cache-control": "public, max-age=300",
+          etag,
+          "access-control-allow-origin": "*",
+        },
+      });
+    }
+
+    const feed: Feed = JSON.parse(feedData);
+    const baseUrl = trimTrailingSlash(env.APP_BASE_URL);
 
     // Fetch emails
     const emailDataPromises = emailIds.map((id) => env.DATA.get(`email:${id}`));
