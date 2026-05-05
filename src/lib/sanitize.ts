@@ -366,12 +366,12 @@ function sanitizeAttributes(tagName: string, attributes: string): string {
   const allowedAttrs = getAllowedAttributes(tagName);
   const parsedAttributes = parseAttributes(attributes);
 
-  let result = "";
+  const result: string[] = [];
   for (const attribute of parsedAttributes) {
-    result += sanitizeAttribute(tagName, allowedAttrs, attribute);
+    result.push(sanitizeAttribute(tagName, allowedAttrs, attribute));
   }
 
-  return result;
+  return result.join("");
 }
 
 function getAllowedAttributes(tagName: string): Set<string> {
