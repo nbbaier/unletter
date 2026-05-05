@@ -221,8 +221,9 @@ export async function handleGetFeed(
       });
     }
 
-    // Try to get from cache
-    const cacheKey = `feed:${feedId}:${format}`;
+    // Include the etag in the cache key so stale generators cannot overwrite
+    // the cache entry for the latest feed version after invalidation.
+    const cacheKey = `feed:${feedId}:${format}:${encodeURIComponent(etag)}`;
     const cachedFeed = await env.DATA.get(cacheKey);
 
     if (cachedFeed) {
@@ -277,7 +278,7 @@ export async function handleGetFeed(
     const output = format === "atom" ? rssFeed.atom1() : rssFeed.rss2();
 
     // Cache the output (1 week TTL as safety net)
-    await env.DATA.put(cacheKey, output, { expirationTtl: 604800 });
+    await env.DATA.put(cacheKey, output, { expirationTtl: 604_800 });
 
     return new Response(output, {
       headers: {
