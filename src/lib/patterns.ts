@@ -33,5 +33,5 @@ export function extractWebViewLink(html: string): string | undefined {
     match = ANCHOR_REGEX.exec(html);
   }
 
-  return undefined;
+  return;
 }
