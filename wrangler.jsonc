@@ -2,10 +2,16 @@
   "name": "unletter-worker-dev",
   "main": "src/worker.ts",
   "compatibility_date": "2026-02-13",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "assets": {
     "directory": "src/assets",
     "binding": "ASSETS"
+  },
+  "vars": {
+    "APP_BASE_URL": "https://unletter.app",
+    "INBOUND_EMAIL_DOMAIN": "unletter.app"
   },
   "kv_namespaces": [
     {
@@ -32,7 +38,9 @@
     {
       "tag": "v1",
       "new_sqlite_classes": [],
-      "new_classes": ["RateLimiterDO"]
+      "new_classes": [
+        "RateLimiterDO"
+      ]
     }
   ]
 }
