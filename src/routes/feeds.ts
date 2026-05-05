@@ -145,6 +145,17 @@ export async function handleDeleteFeed(
     // Get all emails for this feed and delete them
     const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
     const emailIds: string[] = emailListData ? JSON.parse(emailListData) : [];
+    const cleanupKey = `feed:${feedId}:cleanup`;
+
+    if (emailIds.length > 0) {
+      await env.DATA.put(
+        cleanupKey,
+        JSON.stringify({
+          emailIds,
+          requestedAt: new Date().toISOString(),
+        })
+      );
+    }
 
     // Delete emails in background using waitUntil so we don't block the HTTP response
     executionCtx.waitUntil(
@@ -152,12 +163,23 @@ export async function handleDeleteFeed(
         const results = await Promise.allSettled(
           emailIds.map((emailId) => env.DATA.delete(`email:${emailId}`))
         );
-        const failures = results.filter((r) => r.status === "rejected");
-        if (failures.length > 0) {
-          console.error(
-            `Failed to delete ${failures.length}/${emailIds.length} emails for feed ${feedId}`
+        const failedEmailIds = results.flatMap((result, index) =>
+          result.status === "rejected" ? [emailIds[index]] : []
+        );
+        if (failedEmailIds.length > 0) {
+          await env.DATA.put(
+            cleanupKey,
+            JSON.stringify({
+              emailIds: failedEmailIds,
+              failedAt: new Date().toISOString(),
+            })
           );
+          console.error(
+            `Failed to delete ${failedEmailIds.length}/${emailIds.length} emails for feed ${feedId}`
+          );
+          return;
         }
+        await env.DATA.delete(cleanupKey);
       })()
     );
 

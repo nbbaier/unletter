@@ -215,6 +215,12 @@ describe("Feed Management API", () => {
         feed: { id: string; emailAddress: string };
       };
       const feedId = createData.feed.id;
+      await env.DATA.put(
+        `feed:${feedId}:emails`,
+        JSON.stringify(["email-1", "email-2"])
+      );
+      await env.DATA.put("email:email-1", JSON.stringify({ id: "email-1" }));
+      await env.DATA.put("email:email-2", JSON.stringify({ id: "email-2" }));
 
       const request = createMockRequest(
         "DELETE",
@@ -225,18 +231,22 @@ describe("Feed Management API", () => {
         `http://localhost/api/feeds/${feedId}`
       );
 
-      // Mock executionCtx
+      const waitUntilPromises: Promise<unknown>[] = [];
       const mockCtx = {
-        waitUntil: (_promise: Promise<unknown>) => {
-          /* intentionally empty */
+        waitUntil: (promise: Promise<unknown>) => {
+          waitUntilPromises.push(promise);
         },
       };
 
       const response = await handleDeleteFeed(request, env, mockCtx, feedId);
+      await Promise.all(waitUntilPromises);
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as { message: string };
       expect(data.message).toBe("Feed deleted");
+      await expect(env.DATA.get("email:email-1")).resolves.toBeNull();
+      await expect(env.DATA.get("email:email-2")).resolves.toBeNull();
+      await expect(env.DATA.get(`feed:${feedId}:cleanup`)).resolves.toBeNull();
     });
   });
 
