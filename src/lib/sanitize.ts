@@ -382,14 +382,10 @@ function getAllowedAttributes(tagName: string): Set<string> {
 }
 
 function parseAttributes(attributes: string): ParsedAttribute[] {
-  ATTRIBUTE_PATTERN.lastIndex = 0;
+  const matches = attributes.matchAll(ATTRIBUTE_PATTERN);
   const parsed: ParsedAttribute[] = [];
 
-  for (
-    let match = ATTRIBUTE_PATTERN.exec(attributes);
-    match !== null;
-    match = ATTRIBUTE_PATTERN.exec(attributes)
-  ) {
+  for (const match of matches) {
     parsed.push({
       name: match[1].toLowerCase(),
       value: match[2] ?? match[3] ?? match[4] ?? "",
