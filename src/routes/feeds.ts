@@ -116,6 +116,7 @@ export async function handleListFeeds(
 
         const feed: Feed = JSON.parse(feedData);
         migrated = true;
+        const feed: Feed = JSON.parse(feedData);
         return {
           id: feed.id,
           name: feed.name,
