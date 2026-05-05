@@ -225,7 +225,14 @@ describe("Feed Management API", () => {
         `http://localhost/api/feeds/${feedId}`
       );
 
-      const response = await handleDeleteFeed(request, env, feedId);
+      // Mock executionCtx
+      const mockCtx = {
+        waitUntil: (_promise: Promise<unknown>) => {
+          /* intentionally empty */
+        },
+      };
+
+      const response = await handleDeleteFeed(request, env, mockCtx, feedId);
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as { message: string };
