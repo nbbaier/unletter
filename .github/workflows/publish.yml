@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'scripts/**'
+      - '.github/workflows/log.yml'
 concurrency:
   group: publish
   cancel-in-progress: false
