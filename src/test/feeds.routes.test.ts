@@ -1,176 +1,279 @@
 import { describe, expect, it } from "vitest";
 import { handleSignup } from "../routes/auth.ts";
 import {
-	handleCreateFeed,
-	handleDeleteFeed,
-	handleListFeeds,
+  handleCreateFeed,
+  handleDeleteFeed,
+  handleGetFeed,
+  handleListFeeds,
 } from "../routes/feeds.ts";
 import { createMockEnv } from "./utils.ts";
 
 function createMockRequest(
-	method: string,
-	body?: unknown,
-	headers?: Record<string, string>,
-	url = "http://localhost/api/feeds",
+  method: string,
+  body?: unknown,
+  headers?: Record<string, string>,
+  url = "http://localhost/api/feeds"
 ): Request {
-	return new Request(url, {
-		method,
-		headers: {
-			"Content-Type": "application/json",
-			...headers,
-		},
-		body: body ? JSON.stringify(body) : undefined,
-	});
+  return new Request(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
 }
 
 async function createTestUserAndGetToken(
-	env: ReturnType<typeof createMockEnv>,
+  env: ReturnType<typeof createMockEnv>
 ): Promise<string> {
-	const signupRequest = createMockRequest(
-		"POST",
-		{
-			email: "testuser@example.com",
-			password: "password123",
-		},
-		{},
-		"http://localhost/api/auth/signup",
-	);
-	const response = await handleSignup(signupRequest, env);
-	const data = await response.json();
-	return data.token;
+  const signupRequest = createMockRequest(
+    "POST",
+    {
+      email: "testuser@example.com",
+      password: "password123",
+    },
+    {},
+    "http://localhost/api/auth/signup"
+  );
+  const response = await handleSignup(signupRequest, env);
+  const data = await response.json();
+  return data.token;
 }
 
 describe("Feed Management API", () => {
-	describe("handleCreateFeed", () => {
-		it("should create a new feed when authenticated", async () => {
-			const env = createMockEnv();
-			const token = await createTestUserAndGetToken(env);
+  describe("handleCreateFeed", () => {
+    it("should create a new feed when authenticated", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
 
-			const request = createMockRequest(
-				"POST",
-				{ name: "Test Feed" },
-				{
-					Authorization: `Bearer ${token}`,
-				},
-			);
+      const request = createMockRequest(
+        "POST",
+        { name: "Test Feed" },
+        {
+          Authorization: `Bearer ${token}`,
+        }
+      );
 
-			const response = await handleCreateFeed(request, env);
+      const response = await handleCreateFeed(request, env);
 
-			expect(response.status).toBe(201);
-			const data = (await response.json()) as {
-				feed: {
-					id: string;
-					name: string;
-					emailAddress: string;
-					createdAt: string;
-				};
-			};
-			expect(data.feed.id).toBeTruthy();
-			expect(data.feed.emailAddress).toContain("@");
-		});
+      expect(response.status).toBe(201);
+      const data = (await response.json()) as {
+        feed: {
+          id: string;
+          name: string;
+          emailAddress: string;
+          createdAt: string;
+        };
+      };
+      expect(data.feed.id).toBeTruthy();
+      expect(data.feed.emailAddress).toContain("@");
+    });
 
-		it("should reject feed creation without auth", async () => {
-			const env = createMockEnv();
-			const request = createMockRequest("POST", { name: "Test Feed" });
+    it("should use configured inbound email domain", async () => {
+      const env = createMockEnv();
+      env.INBOUND_EMAIL_DOMAIN = "letters.example.com";
+      const token = await createTestUserAndGetToken(env);
 
-			const response = await handleCreateFeed(request, env);
+      const request = createMockRequest(
+        "POST",
+        { name: "Domain Feed" },
+        {
+          Authorization: `Bearer ${token}`,
+        }
+      );
 
-			expect(response.status).toBe(401);
-		});
+      const response = await handleCreateFeed(request, env);
+      expect(response.status).toBe(201);
+      const data = (await response.json()) as {
+        feed: {
+          emailAddress: string;
+        };
+      };
 
-		it("should reject feed creation with invalid token", async () => {
-			const env = createMockEnv();
-			const request = createMockRequest(
-				"POST",
-				{ name: "Test Feed" },
-				{
-					Authorization: "Bearer invalid-token",
-				},
-			);
+      expect(data.feed.emailAddress.endsWith("@letters.example.com")).toBe(
+        true
+      );
+    });
 
-			const response = await handleCreateFeed(request, env);
+    it("should reject feed creation without auth", async () => {
+      const env = createMockEnv();
+      const request = createMockRequest("POST", { name: "Test Feed" });
 
-			expect(response.status).toBe(401);
-		});
-	});
+      const response = await handleCreateFeed(request, env);
 
-	describe("handleListFeeds", () => {
-		it("should list user feeds when authenticated", async () => {
-			const env = createMockEnv();
-			const token = await createTestUserAndGetToken(env);
+      expect(response.status).toBe(401);
+    });
 
-			// Create a feed first
-			await handleCreateFeed(
-				createMockRequest(
-					"POST",
-					{ name: "Test Feed" },
-					{ Authorization: `Bearer ${token}` },
-				),
-				env,
-			);
+    it("should reject feed creation with invalid token", async () => {
+      const env = createMockEnv();
+      const request = createMockRequest(
+        "POST",
+        { name: "Test Feed" },
+        {
+          Authorization: "Bearer invalid-token",
+        }
+      );
 
-			const request = createMockRequest("GET", undefined, {
-				Authorization: `Bearer ${token}`,
-			});
+      const response = await handleCreateFeed(request, env);
 
-			const response = await handleListFeeds(request, env);
+      expect(response.status).toBe(401);
+    });
 
-			expect(response.status).toBe(200);
-			const data = await response.json();
-			expect(Array.isArray(data.feeds)).toBe(true);
-			expect(data.feeds.length).toBeGreaterThan(0);
-		});
+    it("should reject feed creation beyond max feed quota", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
 
-		it("should return empty array for user with no feeds", async () => {
-			const env = createMockEnv();
-			const token = await createTestUserAndGetToken(env);
+      for (let index = 0; index < 25; index += 1) {
+        const response = await handleCreateFeed(
+          createMockRequest(
+            "POST",
+            { name: `Feed ${index}` },
+            {
+              Authorization: `Bearer ${token}`,
+            }
+          ),
+          env
+        );
+        expect(response.status).toBe(201);
+      }
 
-			const request = createMockRequest("GET", undefined, {
-				Authorization: `Bearer ${token}`,
-			});
+      const quotaResponse = await handleCreateFeed(
+        createMockRequest(
+          "POST",
+          { name: "Feed 26" },
+          {
+            Authorization: `Bearer ${token}`,
+          }
+        ),
+        env
+      );
 
-			const response = await handleListFeeds(request, env);
+      expect(quotaResponse.status).toBe(409);
+    });
+  });
 
-			expect(response.status).toBe(200);
-			const data = await response.json();
-			expect(Array.isArray(data.feeds)).toBe(true);
-			expect(data.feeds.length).toBe(0);
-		});
-	});
+  describe("handleListFeeds", () => {
+    it("should list user feeds when authenticated", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
 
-	describe("handleDeleteFeed", () => {
-		it("should delete user feed when authenticated", async () => {
-			const env = createMockEnv();
-			const token = await createTestUserAndGetToken(env);
+      // Create a feed first
+      await handleCreateFeed(
+        createMockRequest(
+          "POST",
+          { name: "Test Feed" },
+          { Authorization: `Bearer ${token}` }
+        ),
+        env
+      );
 
-			// Create a feed first
-			const createResponse = await handleCreateFeed(
-				createMockRequest(
-					"POST",
-					{ name: "Feed to Delete" },
-					{ Authorization: `Bearer ${token}` },
-				),
-				env,
-			);
-			const createData = (await createResponse.json()) as {
-				feed: { id: string; emailAddress: string };
-			};
-			const feedId = createData.feed.id;
+      const request = createMockRequest("GET", undefined, {
+        Authorization: `Bearer ${token}`,
+      });
 
-			const request = createMockRequest(
-				"DELETE",
-				undefined,
-				{
-					Authorization: `Bearer ${token}`,
-				},
-				`http://localhost/api/feeds/${feedId}`,
-			);
+      const response = await handleListFeeds(request, env);
 
-			const response = await handleDeleteFeed(request, env, feedId);
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(Array.isArray(data.feeds)).toBe(true);
+      expect(data.feeds.length).toBeGreaterThan(0);
+    });
 
-			expect(response.status).toBe(200);
-			const data = (await response.json()) as { message: string };
-			expect(data.message).toBe("Feed deleted");
-		});
-	});
+    it("should return empty array for user with no feeds", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+
+      const request = createMockRequest("GET", undefined, {
+        Authorization: `Bearer ${token}`,
+      });
+
+      const response = await handleListFeeds(request, env);
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(Array.isArray(data.feeds)).toBe(true);
+      expect(data.feeds.length).toBe(0);
+    });
+  });
+
+  describe("handleDeleteFeed", () => {
+    it("should delete user feed when authenticated", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+
+      // Create a feed first
+      const createResponse = await handleCreateFeed(
+        createMockRequest(
+          "POST",
+          { name: "Feed to Delete" },
+          { Authorization: `Bearer ${token}` }
+        ),
+        env
+      );
+      const createData = (await createResponse.json()) as {
+        feed: { id: string; emailAddress: string };
+      };
+      const feedId = createData.feed.id;
+
+      const request = createMockRequest(
+        "DELETE",
+        undefined,
+        {
+          Authorization: `Bearer ${token}`,
+        },
+        `http://localhost/api/feeds/${feedId}`
+      );
+
+      const response = await handleDeleteFeed(request, env, feedId);
+
+      expect(response.status).toBe(200);
+      const data = (await response.json()) as { message: string };
+      expect(data.message).toBe("Feed deleted");
+    });
+  });
+
+  describe("handleGetFeed", () => {
+    it("should return 304 when etag matches", async () => {
+      const env = createMockEnv();
+      const feedId = "etag-feed";
+
+      await env.DATA.put(
+        `feed:${feedId}`,
+        JSON.stringify({
+          id: feedId,
+          userId: "user-1",
+          name: "ETag Test Feed",
+          emailAddress: `${feedId}@unletter.app`,
+          createdAt: new Date().toISOString(),
+        })
+      );
+      await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify([]));
+
+      const firstResponse = await handleGetFeed(
+        new Request(`http://localhost/feeds/${feedId}/rss`),
+        env,
+        feedId,
+        "rss"
+      );
+
+      expect(firstResponse.status).toBe(200);
+      const etag = firstResponse.headers.get("etag");
+      expect(etag).toBeTruthy();
+
+      const secondResponse = await handleGetFeed(
+        new Request(`http://localhost/feeds/${feedId}/rss`, {
+          headers: {
+            "if-none-match": etag || "",
+          },
+        }),
+        env,
+        feedId,
+        "rss"
+      );
+
+      expect(secondResponse.status).toBe(304);
+      expect(secondResponse.headers.get("etag")).toBe(etag);
+    });
+  });
 });

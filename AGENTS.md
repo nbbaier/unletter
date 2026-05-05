@@ -1,234 +1,99 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for working in this repository.
 
-## Project Overview
+## Project Snapshot
 
-Unletter is a newsletter-to-RSS conversion service built on Cloudflare Workers using Alchemy for infrastructure-as-code. Currently in landing page phase with waitlist functionality. The service will eventually convert email newsletters into persistent RSS feeds.
+Unletter is a Cloudflare Workers app (managed with Alchemy) that will convert newsletters to RSS. Current focus is landing page + waitlist.
 
-## Development Commands
+## Core Commands
 
 ```bash
-# Install dependencies
 bun install
-
-# Local development server
 bun run dev
-
-# Deploy to Cloudflare
-bun run deploy
-
-# Type checking
 bun run build
-
-# Linting
-bun run lint          # Check for issues
-bun run lint:fix      # Auto-fix issues
-
-# Destroy all infrastructure
+bun run deploy
+bun run lint
+bun run lint:fix
 bun run destroy
 ```
 
 ## Architecture
 
-### Infrastructure (`alchemy.run.ts`)
+- Infrastructure is defined in `alchemy.run.ts`.
+- Worker logic lives in `src/worker.ts`.
+- Static assets are served from `src/assets/`.
+- Worker bindings/types are declared in `types/env.d.ts`.
 
-The project uses Alchemy to define Cloudflare infrastructure as TypeScript code. The main worker is configured with:
+### Worker Routes
 
--  **Static Assets**: HTML/CSS/images served from `src/assets/`
--  **KV Namespace**: `WAITLIST` binding for storing email signups
--  **Secrets**: `ADMIN_API_KEY` for admin endpoint authentication
--  **Domain**: Configured for `unletter.app`
--  **State Store**: Uses CloudflareStateStore for production deployments
+- `POST /api/waitlist`
+- Validates email format.
+- Stores signup in `WAITLIST` KV with metadata.
+- Returns `409` if email already exists.
 
-### Worker (`src/worker.ts`)
+- `GET /admin/waitlist`
+- Requires Bearer auth via `ADMIN_API_KEY`.
+- Returns newest-first entries as `{ total, emails }`.
 
-The Cloudflare Worker handles three routes:
+- All other routes serve static assets from `ASSETS`.
 
-1. **POST /api/waitlist**: Email signup endpoint
+## Required Patterns
 
-   -  Validates email format
-   -  Stores entries in KV with metadata (timestamp, user agent, referrer)
-   -  Returns 409 if email already exists
+- Keep worker bindings type-safe through `worker.Env` from `alchemy.run.ts`.
+- Ensure `alchemy.run.ts` ends with `app.finalize()`.
+- Keep waitlist KV keys mapped directly by email.
+- Include CORS header `access-control-allow-origin: *` on API responses.
 
-2. **GET /admin/waitlist**: Admin endpoint
+## Environment
 
-   -  Requires Bearer token authentication via `ADMIN_API_KEY`
-   -  Returns all waitlist entries sorted by timestamp (newest first)
-   -  Format: `{ total: number, emails: WaitlistEntry[] }`
+- `ALCHEMY_PASSWORD`: required for local secret encryption.
+- `ADMIN_API_KEY`: required for `/admin/waitlist` auth.
 
-3. **All other routes**: Serves static assets from `ASSETS` binding
+## Quality Standards
 
-### Type Safety
+- Use TypeScript strict mode and Biome formatting (tabs + double quotes).
+- Prefer clear names, small focused functions, and early returns.
+- Use `async/await` and handle errors with meaningful `Error` messages.
+- Avoid `any` when possible (`unknown` + narrowing preferred).
+- Remove debugging leftovers (`console.log`, `debugger`, `alert`) from production code.
+- Validate and sanitize user input.
 
-The project uses `types/env.d.ts` to provide full type safety for Cloudflare Worker bindings. All environment variables and bindings are typed through `typeof worker.Env` exported from `alchemy.run.ts`.
+## Validation Workflow
 
-### Code Style
+Before finishing work:
 
--  **Formatter**: Biome with tab indentation and double quotes
--  **TypeScript**: Strict mode enabled, ESNext target
--  **Imports**: Auto-organized by Biome
+1. Run `bun x ultracite fix`.
+2. Run `bun x ultracite check`.
+3. Run relevant tests/build (`bun run build`, targeted test commands).
 
-## Key Files
+## Design Context
 
--  `alchemy.run.ts` - Infrastructure definition (must end with `app.finalize()`)
--  `src/worker.ts` - Worker request handler with API routes
--  `src/assets/` - Static HTML, CSS, images
--  `types/env.d.ts` - Type definitions for Worker environment bindings
--  `biome.json` - Linter and formatter configuration
+### Users
+Newsletter-fatigued professionals and RSS power users. People who already value intentional reading workflows and want their newsletters out of email and into a feed reader. They are comfortable with RSS but frustrated by inbox clutter. They expect tools that respect their time and attention.
 
-## Environment Variables
+### Brand Personality
+**Quiet, editorial, trusted.** Unletter should feel like a well-made reading tool — understated confidence, not shouting for attention. The interface should recede behind the content, like a good book design.
 
-Set in `.env` for local development:
+### Aesthetic Direction
+- **Visual tone**: Warm minimalism. Editorial typography. Content over chrome.
+- **References**: Bear, iA Writer — warm, minimal writing tools that prioritize text and use restraint as a feature.
+- **Anti-references**: Flashy SaaS dashboards, gradient-heavy marketing sites, AI-generated card grids with icons. Nothing that feels like a template.
+- **Theme**: Light mode primary with warm off-white (`--paper: #fdfbf7`). Dark mode planned.
+- **Typography**: Crimson Pro (serif, display/headings) + Work Sans (sans, body). No additional fonts.
+- **Palette**: Narrow and intentional — `--ink`, `--paper`, `--accent` (#d84315 deep orange), `--muted`, `--border`. Expand tokens only when needed.
+- **Shape**: Flat, no border-radius on primary elements. Square edges are part of the editorial identity.
+- **Texture**: Subtle film grain overlay at low opacity. Keep it.
 
--  `ALCHEMY_PASSWORD` - Required for encrypting secrets
--  `ADMIN_API_KEY` - Bearer token for admin endpoint
+### Accessibility
+- **Target**: WCAG AAA compliance.
+- **Themes**: Light + dark mode (dark mode not yet implemented).
+- **Requirements**: Visible focus indicators on all interactive elements. `prefers-reduced-motion` support mandatory — never gate content visibility behind animation. Contrast ratios must meet 7:1 for normal text, 4.5:1 for large text.
+- **Color blindness**: Avoid conveying meaning through color alone. Use text labels alongside color states (success, error, info).
 
-## Important Patterns
-
-1. **Worker bindings are type-safe**: Import `worker.Env` type from `alchemy.run.ts`
-2. **Always call `app.finalize()`**: Required at end of `alchemy.run.ts` to clean up resources
-3. **KV keys are emails**: Direct email-to-entry mapping in WAITLIST namespace
-4. **CORS enabled**: All API responses include `access-control-allow-origin: *`
-
-## Issue Tracking with bd (beads)
-
-**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
-
-### Why bd?
-
-- Dependency-aware: Track blockers and relationships between issues
-- Git-friendly: Auto-syncs to JSONL for version control
-- Agent-optimized: JSON output, ready work detection, discovered-from links
-- Prevents duplicate tracking systems and confusion
-
-### Quick Start
-
-**Check for ready work:**
-```bash
-bd ready --json
-```
-
-**Create new issues:**
-```bash
-bd create "Issue title" -t bug|feature|task -p 0-4 --json
-bd create "Issue title" -p 1 --deps discovered-from:bd-123 --json
-bd create "Subtask" --parent <epic-id> --json  # Hierarchical subtask (gets ID like epic-id.1)
-```
-
-**Claim and update:**
-```bash
-bd update bd-42 --status in_progress --json
-bd update bd-42 --priority 1 --json
-```
-
-**Complete work:**
-```bash
-bd close bd-42 --reason "Completed" --json
-```
-
-### Issue Types
-
-- `bug` - Something broken
-- `feature` - New functionality
-- `task` - Work item (tests, docs, refactoring)
-- `epic` - Large feature with subtasks
-- `chore` - Maintenance (dependencies, tooling)
-
-### Priorities
-
-- `0` - Critical (security, data loss, broken builds)
-- `1` - High (major features, important bugs)
-- `2` - Medium (default, nice-to-have)
-- `3` - Low (polish, optimization)
-- `4` - Backlog (future ideas)
-
-### Workflow for AI Agents
-
-1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task**: `bd update <id> --status in_progress`
-3. **Work on it**: Implement, test, document
-4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" -p 1 --deps discovered-from:<parent-id>`
-5. **Complete**: `bd close <id> --reason "Done"`
-6. **Commit together**: Always commit the `.beads/issues.jsonl` file together with the code changes so issue state stays in sync with code state
-
-### Auto-Sync
-
-bd automatically syncs with git:
-- Exports to `.beads/issues.jsonl` after changes (5s debounce)
-- Imports from JSONL when newer (e.g., after `git pull`)
-- No manual export/import needed!
-
-### GitHub Copilot Integration
-
-If using GitHub Copilot, also create `.github/copilot-instructions.md` for automatic instruction loading.
-Run `bd onboard` to get the content, or see step 2 of the onboard instructions.
-
-### MCP Server (Recommended)
-
-If using Claude or MCP-compatible clients, install the beads MCP server:
-
-```bash
-pip install beads-mcp
-```
-
-Add to MCP config (e.g., `~/.config/claude/config.json`):
-```json
-{
-  "beads": {
-    "command": "beads-mcp",
-    "args": []
-  }
-}
-```
-
-Then use `mcp__beads__*` functions instead of CLI commands.
-
-### Managing AI-Generated Planning Documents
-
-AI assistants often create planning and design documents during development:
-- PLAN.md, IMPLEMENTATION.md, ARCHITECTURE.md
-- DESIGN.md, CODEBASE_SUMMARY.md, INTEGRATION_PLAN.md
-- TESTING_GUIDE.md, TECHNICAL_DESIGN.md, and similar files
-
-**Best Practice: Use a dedicated directory for these ephemeral files**
-
-**Recommended approach:**
-- Create a `history/` directory in the project root
-- Store ALL AI-generated planning/design docs in `history/`
-- Keep the repository root clean and focused on permanent project files
-- Only access `history/` when explicitly asked to review past planning
-
-**Example .gitignore entry (optional):**
-```
-# AI planning documents (ephemeral)
-history/
-```
-
-**Benefits:**
-- ✅ Clean repository root
-- ✅ Clear separation between ephemeral and permanent documentation
-- ✅ Easy to exclude from version control if desired
-- ✅ Preserves planning history for archeological research
-- ✅ Reduces noise when browsing the project
-
-### CLI Help
-
-Run `bd <command> --help` to see all available flags for any command.
-For example: `bd create --help` shows `--parent`, `--deps`, `--assignee`, etc.
-
-### Important Rules
-
-- ✅ Use bd for ALL task tracking
-- ✅ Always use `--json` flag for programmatic use
-- ✅ Link discovered work with `discovered-from` dependencies
-- ✅ Check `bd ready` before asking "what should I work on?"
-- ✅ Store AI planning docs in `history/` directory
-- ✅ Run `bd <cmd> --help` to discover available flags
-- ❌ Do NOT create markdown TODO lists
-- ❌ Do NOT use external issue trackers
-- ❌ Do NOT duplicate tracking systems
-- ❌ Do NOT clutter repo root with planning documents
-
-For more details, see README.md and QUICKSTART.md.
+### Design Principles
+1. **Content first** — The interface should disappear. Typography, whitespace, and hierarchy do the work. No decorative elements that don't serve comprehension.
+2. **Quiet confidence** — No flashy interactions, no gratuitous animation. Motion is functional (state changes, focus). The product earns trust through restraint.
+3. **Editorial craft** — Treat every text element like it's being typeset. Proper hierarchy, intentional spacing, considered line lengths. Sweat the details that readers feel but don't notice.
+4. **Expand tokens, not exceptions** — When a new color or value is needed, add it to the design token system. Never hard-code a one-off hex value in a component.
+5. **Accessible by default** — AAA is the floor, not the ceiling. Every interactive element must be keyboard-navigable with visible focus. Every state change must be announced. Every animation must respect user preferences.
