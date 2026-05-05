@@ -59,7 +59,7 @@ export async function handleCreateFeed(
     await env.DATA.put(`feed:${feedId}`, JSON.stringify(feed));
     await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify([]));
 
-    // Update user's feed list with denormalized metadata
+    // Keep this denormalized shape in sync with any future feed update path.
     userFeeds.push({
       id: feed.id,
       name: feed.name,
@@ -103,19 +103,16 @@ export async function handleListFeeds(
       ? JSON.parse(userFeedsData)
       : [];
 
-    let migrated = false;
     const feedsWithNulls = await Promise.all(
       userFeeds.map(async (item) => {
-        if (typeof item !== "string") {
-          return item;
+        const feedId = typeof item === "string" ? item : item.id;
+        const feedData = await env.DATA.get(`feed:${feedId}`);
+
+        if (!feedData) {
+          return null;
         }
 
-        // Legacy ID: fetch and migrate
-        const feedData = await env.DATA.get(`feed:${item}`);
-        if (!feedData) return null;
-
         const feed: Feed = JSON.parse(feedData);
-        migrated = true;
         return {
           id: feed.id,
           name: feed.name,
@@ -128,11 +125,6 @@ export async function handleListFeeds(
     const feeds = feedsWithNulls.filter(
       (f): f is Omit<Feed, "userId"> => f !== null
     );
-
-    // Lazy migration: update user feed list if any legacy IDs were migrated
-    if (migrated) {
-      await env.DATA.put(`user:${auth.userId}:feeds`, JSON.stringify(feeds));
-    }
 
     return jsonResponse({ feeds });
   } catch (error) {
