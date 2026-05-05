@@ -177,10 +177,8 @@ export async function handleInboundWebhook(
       webViewLink,
     };
 
-    await Promise.all([
-      env.DATA.put(`email:${emailId}`, JSON.stringify(storedEmail)),
-      updateFeedEmailIndex(env, feedId, emailId),
-    ]);
+    await env.DATA.put(`email:${emailId}`, JSON.stringify(storedEmail));
+    await updateFeedEmailIndex(env, feedId, emailId);
 
     return jsonResponse({ success: true, emailId });
   } catch (error) {
