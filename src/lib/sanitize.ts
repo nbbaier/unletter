@@ -230,53 +230,55 @@ function maybeSkipBlockedTagContent(
 }
 
 function closeAllowedTag(
-  result: string,
+  result: string[],
   tagStack: string[],
   tagName: string
-): string {
+): void {
   if (!ALLOWED_TAGS.has(tagName) || tagStack.length === 0) {
-    return result;
+    return;
   }
 
   const stackIndex = tagStack.lastIndexOf(tagName);
   if (stackIndex === -1) {
-    return result;
+    return;
   }
 
   tagStack.splice(stackIndex, 1);
-  return `${result}</${tagName}>`;
+  result.push("</", tagName, ">");
 }
 
 function openAllowedTag(
-  result: string,
+  result: string[],
   tagStack: string[],
   tagName: string,
   attributes: string,
   isSelfClosing: boolean
-): string {
+): void {
   const sanitizedAttrs = sanitizeAttributes(tagName, attributes);
   if (isSelfClosing) {
-    return `${result}<${tagName}${sanitizedAttrs} />`;
+    result.push("<", tagName, sanitizedAttrs, " />");
+    return;
   }
 
   tagStack.push(tagName);
-  return `${result}<${tagName}${sanitizedAttrs}>`;
+  result.push("<", tagName, sanitizedAttrs, ">");
 }
 
 function appendParsedTag(
-  result: string,
+  result: string[],
   tagStack: string[],
   tag: ParsedTag
-): string {
+): void {
   if (tag.isClosing) {
-    return closeAllowedTag(result, tagStack, tag.tagName);
+    closeAllowedTag(result, tagStack, tag.tagName);
+    return;
   }
 
   if (!ALLOWED_TAGS.has(tag.tagName)) {
-    return result;
+    return;
   }
 
-  return openAllowedTag(
+  openAllowedTag(
     result,
     tagStack,
     tag.tagName,
@@ -285,17 +287,13 @@ function appendParsedTag(
   );
 }
 
-function closeRemainingTags(result: string, tagStack: string[]): string {
-  let output = result;
-
+function closeRemainingTags(result: string[], tagStack: string[]): void {
   while (tagStack.length > 0) {
     const tag = tagStack.pop();
     if (tag) {
-      output += `</${tag}>`;
+      result.push("</", tag, ">");
     }
   }
-
-  return output;
 }
 
 /**
@@ -317,7 +315,7 @@ export function sanitizeHtml(html: string): string {
  * Processes tag by tag and only keeps allowed content
  */
 function parseAndSanitize(html: string): string {
-  let result = "";
+  const result: string[] = [];
   let index = 0;
   const tagStack: string[] = [];
   const lowerHtml = html.toLowerCase();
@@ -325,12 +323,12 @@ function parseAndSanitize(html: string): string {
   while (index < html.length) {
     const tagStart = html.indexOf("<", index);
     if (tagStart === -1) {
-      result += escapeHtml(html.slice(index));
+      result.push(escapeHtml(html.slice(index)));
       break;
     }
 
     if (tagStart > index) {
-      result += escapeHtml(html.slice(index, tagStart));
+      result.push(escapeHtml(html.slice(index, tagStart)));
     }
 
     const parsedTag = parseTagAt(html, tagStart);
@@ -348,11 +346,12 @@ function parseAndSanitize(html: string): string {
       continue;
     }
 
-    result = appendParsedTag(result, tagStack, parsedTag.tag);
+    appendParsedTag(result, tagStack, parsedTag.tag);
     index = parsedTag.nextIndex;
   }
 
-  return closeRemainingTags(result, tagStack);
+  closeRemainingTags(result, tagStack);
+  return result.join("");
 }
 
 /**
@@ -366,12 +365,12 @@ function sanitizeAttributes(tagName: string, attributes: string): string {
   const allowedAttrs = getAllowedAttributes(tagName);
   const parsedAttributes = parseAttributes(attributes);
 
-  let result = "";
+  const result: string[] = [];
   for (const attribute of parsedAttributes) {
-    result += sanitizeAttribute(tagName, allowedAttrs, attribute);
+    result.push(sanitizeAttribute(tagName, allowedAttrs, attribute));
   }
 
-  return result;
+  return result.join("");
 }
 
 function getAllowedAttributes(tagName: string): Set<string> {
