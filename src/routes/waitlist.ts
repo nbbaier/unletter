@@ -19,8 +19,14 @@ interface WaitlistEntry {
 
 type WorkerEnv = typeof worker.Env;
 
+const MAX_WAITLIST_METADATA_FIELD_CHARS = 200;
+
 export const waitlistRoutes = new Hono<{ Bindings: WorkerEnv }>();
 export const adminWaitlistRoutes = new Hono<{ Bindings: WorkerEnv }>();
+
+function truncateMetadataField(value: string): string {
+  return value.slice(0, MAX_WAITLIST_METADATA_FIELD_CHARS);
+}
 
 async function verifyTurnstileToken(
   token: string,
@@ -107,13 +113,15 @@ export async function handleWaitlistSignup(
     const entry: WaitlistEntry = {
       email,
       timestamp: new Date().toISOString(),
-      userAgent: request.headers.get("user-agent") || "unknown",
-      referrer: request.headers.get("referer") || "direct",
+      userAgent: truncateMetadataField(
+        request.headers.get("user-agent") || "unknown"
+      ),
+      referrer: truncateMetadataField(
+        request.headers.get("referer") || "direct"
+      ),
     };
 
-    await env.WAITLIST.put(email, JSON.stringify(entry), {
-      metadata: entry,
-    });
+    await env.WAITLIST.put(email, JSON.stringify(entry), { metadata: entry });
 
     return jsonResponse({ message: "Successfully added to waitlist!" }, 201);
   } catch (error) {
@@ -152,18 +160,16 @@ export async function handleAdminList(
     let cursor: string | undefined;
 
     while (!listComplete) {
-      const list = await env.WAITLIST.list({ cursor, metadata: true });
+      const list = await env.WAITLIST.list<WaitlistEntry>({ cursor });
       listComplete = list.list_complete;
       cursor = list.list_complete ? undefined : list.cursor;
 
       const batchResults = await Promise.all(
         list.keys.map(async (key) => {
-          // Optimization: check if entry is available in metadata to avoid N+1 queries
           if (key.metadata) {
             return key.metadata as WaitlistEntry;
           }
 
-          // Fallback for entries created before metadata optimization
           const value = await env.WAITLIST.get(key.name);
           return value ? (JSON.parse(value) as WaitlistEntry) : null;
         })

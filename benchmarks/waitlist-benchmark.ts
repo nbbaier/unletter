@@ -13,6 +13,7 @@ const mockEnv = {
           referrer: "benchmark",
         },
       })),
+      list_complete: true,
     }),
     get: async (key: string) => {
       // Simulate network latency
