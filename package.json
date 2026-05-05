@@ -19,24 +19,24 @@
     "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.9",
-    "@cloudflare/workers-types": "^4.20260317.1",
-    "@types/node": "^25.5.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260328.1",
-    "@vitest/coverage-v8": "^4.1.2",
-    "alchemy": "0.90.1",
-    "miniflare": "^4.20260317.3",
-    "typescript": "^6.0.2",
-    "ultracite": "7.3.2",
+    "@biomejs/biome": "2.4.13",
+    "@cloudflare/workers-types": "^4.20260426.1",
+    "@types/node": "^25.6.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260428.1",
+    "@vitest/coverage-v8": "^4.1.5",
+    "alchemy": "0.93.4",
+    "miniflare": "^4.20260426.0",
+    "typescript": "^6.0.3",
+    "ultracite": "7.6.2",
     "vibe-rules": "^0.3.91",
-    "vitest": "^4.1.2",
+    "vitest": "^4.1.5",
     "vitest-environment-miniflare": "^2.14.4",
-    "wrangler": "^4.78.0"
+    "wrangler": "^4.86.0"
   },
   "dependencies": {
-    "feed": "^5.2.0",
-    "hono": "^4.12.9",
-    "nanoid": "^5.1.7",
+    "feed": "^5.2.1",
+    "hono": "^4.12.15",
+    "nanoid": "^5.1.9",
     "zod": "^4.3.6"
   }
 }
