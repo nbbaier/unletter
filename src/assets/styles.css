@@ -53,6 +53,16 @@
   clip: rect(0, 0, 0, 0);
 }
 
+.hp-field {
+  position: absolute;
+  top: 0;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  opacity: 0;
+}
+
 body {
   overflow-x: hidden;
   font-family: "Work Sans", sans-serif;
@@ -79,7 +89,7 @@ body {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 80px;
+  gap: 60px;
   max-width: 720px;
   padding: 80px 24px;
   margin: 0 auto;
@@ -189,15 +199,24 @@ h1 {
   color: var(--muted);
 }
 
-.benefits {
+.benefits,
+.reader-fit {
   padding: 32px 40px;
   background: var(--surface);
   border: 1px solid var(--border);
   opacity: 0;
+}
+
+.benefits {
   animation: fadeInUp 0.8s ease-out 0.4s forwards;
 }
 
-.benefits h2 {
+.reader-fit {
+  animation: fadeInUp 0.8s ease-out 0.5s forwards;
+}
+
+.benefits h2,
+.reader-fit h2 {
   margin-bottom: 20px;
   font-family: "Crimson Pro", serif;
   font-size: 22px;
@@ -355,6 +374,7 @@ h1 {
   .header,
   .steps,
   .benefits,
+  .reader-fit,
   .signup,
   .footer {
     opacity: 1;
@@ -375,7 +395,8 @@ h1 {
     padding: 48px 20px;
   }
 
-  .benefits {
+  .benefits,
+  .reader-fit {
     padding: 24px 20px;
   }
 

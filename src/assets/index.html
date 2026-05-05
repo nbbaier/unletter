@@ -108,13 +108,43 @@
           </div>
         </div>
       </section>
+      <section class="reader-fit" aria-labelledby="reader-fit-title">
+        <h2 id="reader-fit-title">Use the reader you already trust.</h2>
 
+        <div class="benefit-list">
+          <div class="benefit">
+            <h3>Locked to one product</h3>
+            <p>
+              Feedbin and Readwise can take newsletters in, but only inside
+              their platforms—and often on paid tiers.
+            </p>
+          </div>
+
+          <div class="benefit">
+            <h3>Open RSS feeds</h3>
+            <p>
+              unletter turns each newsletter into standard RSS for NetNewsWire,
+              Reeder, Miniflux, Feedly, or any reader you choose.
+            </p>
+          </div>
+        </div>
+      </section>
       <section class="signup" id="signup">
         <h2>Get early access</h2>
         <p>We're launching soon. Join the waitlist to be notified.</p>
 
         <form class="signup-form" id="signupForm">
           <label for="emailInput" class="sr-only">Email address</label>
+          <label for="websiteInput" class="sr-only">Company website</label>
+          <input
+            type="text"
+            id="websiteInput"
+            class="hp-field"
+            autocomplete="off"
+            tabindex="-1"
+            aria-hidden="true"
+          >
+          <input type="hidden" id="turnstileTokenInput" value="">
           <input
             type="email"
             id="emailInput"
@@ -149,12 +179,18 @@
     (() => {
       const form = document.getElementById("signupForm");
       const input = document.getElementById("emailInput");
+      const websiteInput = document.getElementById("websiteInput");
+      const turnstileTokenInput = document.getElementById(
+        "turnstileTokenInput"
+      );
       const button = form.querySelector(".submit-btn");
       const messageEl = document.getElementById("formMessage");
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const email = input.value;
+        const website = websiteInput.value;
+        const turnstileToken = turnstileTokenInput.value;
 
         // Clear any previous messages
         messageEl.textContent = "";
@@ -169,7 +205,7 @@
           const response = await fetch("/api/waitlist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({ email, website, turnstileToken }),
           });
 
           const data = await response.json();
@@ -209,7 +245,8 @@
             button.disabled = false;
             input.disabled = false;
           }
-        } catch (_) {
+        } catch (error) {
+          console.error(error);
           button.textContent = "Try again";
           messageEl.textContent = "Network error — please try again";
           messageEl.className = "form-message error";

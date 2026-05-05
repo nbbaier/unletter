@@ -3,6 +3,7 @@ import { handleSignup } from "../routes/auth.ts";
 import {
   handleCreateFeed,
   handleDeleteFeed,
+  handleGetFeed,
   handleListFeeds,
 } from "../routes/feeds.ts";
 import { createMockEnv } from "./utils.ts";
@@ -69,6 +70,32 @@ describe("Feed Management API", () => {
       expect(data.feed.emailAddress).toContain("@");
     });
 
+    it("should use configured inbound email domain", async () => {
+      const env = createMockEnv();
+      env.INBOUND_EMAIL_DOMAIN = "letters.example.com";
+      const token = await createTestUserAndGetToken(env);
+
+      const request = createMockRequest(
+        "POST",
+        { name: "Domain Feed" },
+        {
+          Authorization: `Bearer ${token}`,
+        }
+      );
+
+      const response = await handleCreateFeed(request, env);
+      expect(response.status).toBe(201);
+      const data = (await response.json()) as {
+        feed: {
+          emailAddress: string;
+        };
+      };
+
+      expect(data.feed.emailAddress.endsWith("@letters.example.com")).toBe(
+        true
+      );
+    });
+
     it("should reject feed creation without auth", async () => {
       const env = createMockEnv();
       const request = createMockRequest("POST", { name: "Test Feed" });
@@ -91,6 +118,38 @@ describe("Feed Management API", () => {
       const response = await handleCreateFeed(request, env);
 
       expect(response.status).toBe(401);
+    });
+
+    it("should reject feed creation beyond max feed quota", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+
+      for (let index = 0; index < 25; index += 1) {
+        const response = await handleCreateFeed(
+          createMockRequest(
+            "POST",
+            { name: `Feed ${index}` },
+            {
+              Authorization: `Bearer ${token}`,
+            }
+          ),
+          env
+        );
+        expect(response.status).toBe(201);
+      }
+
+      const quotaResponse = await handleCreateFeed(
+        createMockRequest(
+          "POST",
+          { name: "Feed 26" },
+          {
+            Authorization: `Bearer ${token}`,
+          }
+        ),
+        env
+      );
+
+      expect(quotaResponse.status).toBe(409);
     });
   });
 
@@ -171,6 +230,50 @@ describe("Feed Management API", () => {
       expect(response.status).toBe(200);
       const data = (await response.json()) as { message: string };
       expect(data.message).toBe("Feed deleted");
+    });
+  });
+
+  describe("handleGetFeed", () => {
+    it("should return 304 when etag matches", async () => {
+      const env = createMockEnv();
+      const feedId = "etag-feed";
+
+      await env.DATA.put(
+        `feed:${feedId}`,
+        JSON.stringify({
+          id: feedId,
+          userId: "user-1",
+          name: "ETag Test Feed",
+          emailAddress: `${feedId}@unletter.app`,
+          createdAt: new Date().toISOString(),
+        })
+      );
+      await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify([]));
+
+      const firstResponse = await handleGetFeed(
+        new Request(`http://localhost/feeds/${feedId}/rss`),
+        env,
+        feedId,
+        "rss"
+      );
+
+      expect(firstResponse.status).toBe(200);
+      const etag = firstResponse.headers.get("etag");
+      expect(etag).toBeTruthy();
+
+      const secondResponse = await handleGetFeed(
+        new Request(`http://localhost/feeds/${feedId}/rss`, {
+          headers: {
+            "if-none-match": etag || "",
+          },
+        }),
+        env,
+        feedId,
+        "rss"
+      );
+
+      expect(secondResponse.status).toBe(304);
+      expect(secondResponse.headers.get("etag")).toBe(etag);
     });
   });
 });

@@ -20,6 +20,10 @@ const PRE_FLIGHT_HEADERS = {
   "access-control-allow-headers": "content-type, authorization",
 };
 
+function createRequestID(): string {
+  return crypto.randomUUID();
+}
+
 function ensureEnvironmentValidated(env: WorkerEnv): Response | null {
   if (envValidated) {
     return null;
@@ -69,7 +73,31 @@ app.use("*", async (c, next) => {
   if (validationError) {
     return validationError;
   }
+
+  const requestID = createRequestID();
+  const startTime = Date.now();
+
   await next();
+
+  const durationMs = Date.now() - startTime;
+  c.res = new Response(c.res.body, {
+    headers: c.res.headers,
+    status: c.res.status,
+    statusText: c.res.statusText,
+  });
+  c.res.headers.set("x-request-id", requestID);
+
+  console.log(
+    JSON.stringify({
+      level: "info",
+      event: "request.completed",
+      requestID,
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+      durationMs,
+    })
+  );
 });
 
 app.options("*", () => new Response(null, { headers: PRE_FLIGHT_HEADERS }));

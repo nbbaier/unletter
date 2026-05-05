@@ -11,6 +11,10 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
+function trimTrailingSlash(url: string): string {
+  return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
 export async function handleWebView(
   env: typeof worker.Env,
   feedId: string,
@@ -39,6 +43,8 @@ export async function handleWebView(
     });
 
     // Build HTML page
+    const appBaseUrl = trimTrailingSlash(env.APP_BASE_URL);
+
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -117,7 +123,7 @@ export async function handleWebView(
 		${email.html || `<pre>${escapeHtml(email.text)}</pre>`}
 	</main>
 	<footer class="footer">
-		<p>Delivered by <a href="https://unletter.app">unletter</a></p>
+		<p>Delivered by <a href="${appBaseUrl}">unletter</a></p>
 	</footer>
 </body>
 </html>`;
@@ -129,6 +135,9 @@ export async function handleWebView(
         // CSP to mitigate XSS from newsletter HTML content
         "content-security-policy":
           "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src * data:; frame-src 'none';",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "referrer-policy": "strict-origin-when-cross-origin",
       },
     });
   } catch (error) {

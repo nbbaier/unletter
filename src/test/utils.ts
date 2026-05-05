@@ -1,12 +1,20 @@
-import type { KVNamespace } from "@cloudflare/workers-types";
+import type {
+  DurableObjectNamespace,
+  DurableObjectStub,
+  KVNamespace,
+} from "@cloudflare/workers-types";
 
 export interface MockEnv {
   ADMIN_API_KEY: string;
+  APP_BASE_URL: string;
   ASSETS: {
     fetch: (request: Request) => Promise<Response>;
   };
   DATA: KVNamespace;
+  INBOUND_EMAIL_DOMAIN: string;
   JWT_SECRET: string;
+  RATE_LIMITER: DurableObjectNamespace;
+  TURNSTILE_SECRET: string;
   WAITLIST: KVNamespace;
   WEBHOOK_SECRET: string;
 }
@@ -33,63 +41,47 @@ export function createMockEnv(): MockEnv {
       getWithMetadata: () => Promise.resolve({ value: null, metadata: null }),
     }) as unknown as KVNamespace;
 
+  const rateLimiterStub = {
+    fetch: () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            allowed: true,
+            remaining: 100,
+            limit: 100,
+            resetAt: Math.floor(Date.now() / 1000) + 60,
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          }
+        )
+      ),
+  } as unknown as DurableObjectStub;
+
+  const rateLimiterNamespace = {
+    idFromName: (name: string) => ({ toString: () => name }),
+    get: () => rateLimiterStub,
+  } as unknown as DurableObjectNamespace;
+
   return {
     DATA: createKVNamespace(dataStore),
     WAITLIST: createKVNamespace(waitlistStore),
+    RATE_LIMITER: rateLimiterNamespace,
     JWT_SECRET: "test-secret-key-for-jwt-signing-in-tests-only",
     ADMIN_API_KEY: "test-admin-api-key",
     WEBHOOK_SECRET: "test-webhook-secret",
+    APP_BASE_URL: "https://unletter.test",
+    INBOUND_EMAIL_DOMAIN: "unletter.app",
+    TURNSTILE_SECRET: "",
     ASSETS: {
       fetch: async () =>
         new Response("Not Found", {
           status: 404,
         }),
     },
-  };
-}
-
-export async function createTestUser(
-  _env: MockEnv,
-  email: string,
-  password: string
-): Promise<{ userId: string; token: string }> {
-  // Create user via signup
-  const signupResponse = await fetch("http://localhost/api/auth/signup", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!signupResponse.ok) {
-    throw new Error(
-      `Failed to create test user: ${await signupResponse.text()}`
-    );
-  }
-
-  const signupData = (await signupResponse.json()) as {
-    userId: string;
-    email: string;
-  };
-
-  // Login to get token
-  const loginResponse = await fetch("http://localhost/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!loginResponse.ok) {
-    throw new Error(`Failed to login test user: ${await loginResponse.text()}`);
-  }
-
-  const loginData = (await loginResponse.json()) as {
-    token: string;
-    userId: string;
-  };
-
-  return {
-    userId: signupData.userId,
-    token: loginData.token,
   };
 }
 
