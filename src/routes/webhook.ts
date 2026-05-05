@@ -82,16 +82,38 @@ function parseRecipient(
 async function updateFeedEmailIndex(
   env: WorkerEnv,
   feedId: string,
-  emailId: string
+  email: StoredEmail
 ): Promise<void> {
   const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
-  const emailIds: string[] = emailListData ? JSON.parse(emailListData) : [];
+  const emailList: (string | StoredEmail)[] = emailListData
+    ? JSON.parse(emailListData)
+    : [];
 
-  const dedupedIds = [emailId, ...emailIds.filter((id) => id !== emailId)];
-  const retainedIds = dedupedIds.slice(0, MAX_EMAILS_PER_FEED);
-  const staleIds = dedupedIds.slice(MAX_EMAILS_PER_FEED);
+  const emailId = email.id;
 
-  await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify(retainedIds));
+  // Deduplicate and move to front using indexOf + splice + unshift for performance
+  let existingIndex = -1;
+  for (let i = 0; i < emailList.length; i++) {
+    const item = emailList[i];
+    const itemId = typeof item === "string" ? item : item.id;
+    if (itemId === emailId) {
+      existingIndex = i;
+      break;
+    }
+  }
+
+  if (existingIndex !== -1) {
+    emailList.splice(existingIndex, 1);
+  }
+  emailList.unshift(email);
+
+  const retainedItems = emailList.slice(0, MAX_EMAILS_PER_FEED);
+  const staleItems = emailList.slice(MAX_EMAILS_PER_FEED);
+  const staleIds = staleItems.map((item) =>
+    typeof item === "string" ? item : item.id
+  );
+
+  await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify(retainedItems));
 
   if (staleIds.length === 0) {
     return;
@@ -178,7 +200,7 @@ export async function handleInboundWebhook(
     };
 
     await env.DATA.put(`email:${emailId}`, JSON.stringify(storedEmail));
-    await updateFeedEmailIndex(env, feedId, emailId);
+    await updateFeedEmailIndex(env, feedId, storedEmail);
 
     return jsonResponse({ success: true, emailId });
   } catch (error) {

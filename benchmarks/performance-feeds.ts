@@ -1,4 +1,3 @@
-import { describe, expect, test } from "vitest";
 import { createToken } from "../src/lib/auth.ts";
 import { handleListFeeds } from "../src/routes/feeds.ts";
 
@@ -37,29 +36,33 @@ const mockEnv = {
   },
 } as unknown as Parameters<typeof handleListFeeds>[1];
 
-describe("Performance Baseline", () => {
-  test("measure handleListFeeds performance", async () => {
-    const token = await createToken(USER_ID, JWT_SECRET);
-    const start = performance.now();
-    const response = await handleListFeeds(
-      new Request("http://localhost/feeds", {
-        headers: {
-          authorization: `Bearer ${token}`,
-        },
-      }),
-      mockEnv
-    );
-    const end = performance.now();
+async function runBenchmark() {
+  const token = await createToken(USER_ID, JWT_SECRET);
+  const start = performance.now();
+  const response = await handleListFeeds(
+    new Request("http://localhost/feeds", {
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    }),
+    mockEnv
+  );
+  const end = performance.now();
 
-    const duration = end - start;
-    console.log("\n\n--- Performance Result ---");
-    console.log(
-      `Time taken to fetch ${FEED_COUNT} feeds with ${DELAY_MS}ms latency per fetch: ${duration.toFixed(2)}ms`
-    );
-    console.log("--------------------------\n");
+  const duration = end - start;
+  console.log("\n\n--- Performance Result ---");
+  console.log(
+    `Time taken to fetch ${FEED_COUNT} feeds with ${DELAY_MS}ms latency per fetch: ${duration.toFixed(2)}ms`
+  );
+  console.log("--------------------------\n");
 
-    expect(response.status).toBe(200);
-    const data = (await response.json()) as { feeds: unknown[] };
-    expect(data.feeds).toHaveLength(FEED_COUNT);
-  });
-});
+  if (response.status !== 200) {
+    throw new Error(`Expected status 200, got ${response.status}`);
+  }
+  const data = (await response.json()) as { feeds: unknown[] };
+  if (data.feeds.length !== FEED_COUNT) {
+    throw new Error(`Expected ${FEED_COUNT} feeds, got ${data.feeds.length}`);
+  }
+}
+
+runBenchmark().catch(console.error);

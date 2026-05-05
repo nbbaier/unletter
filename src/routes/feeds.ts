@@ -143,7 +143,12 @@ export async function handleDeleteFeed(
 
     // Get all emails for this feed and delete them
     const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
-    const emailIds: string[] = emailListData ? JSON.parse(emailListData) : [];
+    const emailList: (string | StoredEmail)[] = emailListData
+      ? JSON.parse(emailListData)
+      : [];
+    const emailIds = emailList.map((item) =>
+      typeof item === "string" ? item : item.id
+    );
 
     // Delete emails in parallel, using allSettled to ensure cleanup
     // continues even if individual deletes fail
@@ -195,12 +200,18 @@ export async function handleGetFeed(
 
     // Get email list (limit to 50 most recent)
     const emailListData = await env.DATA.get(`feed:${feedId}:emails`);
-    const emailIds: string[] = emailListData
-      ? JSON.parse(emailListData).slice(0, 50)
+    const fullEmailList: (string | StoredEmail)[] = emailListData
+      ? JSON.parse(emailListData)
       : [];
 
-    const latestId = emailIds[0] || "empty";
-    const etag = `W/"${feedId}:${format}:${latestId}:${emailIds.length}"`;
+    const displayList = fullEmailList.slice(0, 50);
+
+    const firstItem = displayList[0];
+    let latestId = "empty";
+    if (firstItem) {
+      latestId = typeof firstItem === "string" ? firstItem : firstItem.id;
+    }
+    const etag = `W/"${feedId}:${format}:${latestId}:${displayList.length}"`;
     const ifNoneMatch = request.headers.get("if-none-match");
 
     if (ifNoneMatch === etag) {
@@ -215,14 +226,32 @@ export async function handleGetFeed(
     }
 
     // Fetch emails
-    const emailDataPromises = emailIds.map((id) => env.DATA.get(`email:${id}`));
-    const emailDataList = await Promise.all(emailDataPromises);
-
-    const emails: StoredEmail[] = [];
-    for (const emailData of emailDataList) {
-      if (emailData) {
-        emails.push(JSON.parse(emailData));
+    let needsMigration = false;
+    const emailPromises = displayList.map(async (item, index) => {
+      if (typeof item === "string") {
+        needsMigration = true;
+        const emailData = await env.DATA.get(`email:${item}`);
+        if (emailData) {
+          const parsed = JSON.parse(emailData) as StoredEmail;
+          // Update the full list for lazy migration
+          fullEmailList[index] = parsed;
+          return parsed;
+        }
+        return null;
       }
+      return item;
+    });
+
+    const emailDataList = await Promise.all(emailPromises);
+    const emails: StoredEmail[] = emailDataList.filter(
+      (email): email is StoredEmail => email !== null
+    );
+
+    if (needsMigration) {
+      await env.DATA.put(
+        `feed:${feedId}:emails`,
+        JSON.stringify(fullEmailList)
+      );
     }
 
     // Build feed

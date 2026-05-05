@@ -77,10 +77,11 @@ describe("Webhook Routes", () => {
     expect(secondData.duplicate).toBe(true);
 
     const emailListRaw = await env.DATA.get(`feed:${feedId}:emails`);
-    const emailList = emailListRaw
-      ? (JSON.parse(emailListRaw) as string[])
-      : [];
-    expect(emailList).toEqual(["email-duplicate"]);
+    const emailList = emailListRaw ? (JSON.parse(emailListRaw) as any[]) : [];
+    const emailIds = emailList.map((item) =>
+      typeof item === "string" ? item : item.id
+    );
+    expect(emailIds).toEqual(["email-duplicate"]);
   });
 
   it("should cap retained emails per feed and delete stale records", async () => {
@@ -99,13 +100,14 @@ describe("Webhook Routes", () => {
     }
 
     const emailListRaw = await env.DATA.get(`feed:${feedId}:emails`);
-    const emailList = emailListRaw
-      ? (JSON.parse(emailListRaw) as string[])
-      : [];
+    const emailList = emailListRaw ? (JSON.parse(emailListRaw) as any[]) : [];
 
     expect(emailList.length).toBe(MAX_EMAILS_PER_FEED);
-    expect(emailList[0]).toBe(`email-${totalEmails - 1}`);
-    expect(emailList.at(-1)).toBe("email-5");
+    const emailIds = emailList.map((item) =>
+      typeof item === "string" ? item : item.id
+    );
+    expect(emailIds[0]).toBe(`email-${totalEmails - 1}`);
+    expect(emailIds.at(-1)).toBe("email-5");
 
     const staleEmail = await env.DATA.get("email:email-0");
     const retainedBoundaryEmail = await env.DATA.get("email:email-5");
