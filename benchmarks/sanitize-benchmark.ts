@@ -1,4 +1,3 @@
-
 import { sanitizeHtml } from "../src/lib/sanitize.ts";
 
 function runBenchmark() {
@@ -35,8 +34,12 @@ function runBenchmark() {
   }
   const end = performance.now();
 
-  console.log(`Total time for ${iterations} iterations: ${(end - start).toFixed(2)}ms`);
-  console.log(`Average time per iteration: ${((end - start) / iterations).toFixed(2)}ms`);
+  console.log(
+    `Total time for ${iterations} iterations: ${(end - start).toFixed(2)}ms`
+  );
+  console.log(
+    `Average time per iteration: ${((end - start) / iterations).toFixed(2)}ms`
+  );
 }
 
 runBenchmark();
