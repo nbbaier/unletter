@@ -1,6 +1,7 @@
 _.log
 .alchemy/
 .cache
+.cursor/hooks/state/continual-learning*
 .env
 .env.development.local
 .env.local
@@ -19,4 +20,3 @@ logs
 node_modules
 out
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
-.cursor/hooks/state/continual-learning.json
