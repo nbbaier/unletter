@@ -2,13 +2,9 @@ const ITERATIONS = 100_000;
 const HASH_ALGORITHM = "SHA-256";
 const SALT_LENGTH = 16;
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
+export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary);
+  return btoa(String.fromCharCode.apply(null, bytes as any));
 }
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
