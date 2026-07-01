@@ -4,7 +4,7 @@ const SALT_LENGTH = 16;
 
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-  return btoa(String.fromCharCode.apply(null, bytes as any));
+  return btoa(String.fromCharCode(...Array.from(bytes)));
 }
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
