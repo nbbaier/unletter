@@ -97,3 +97,17 @@ Newsletter-fatigued professionals and RSS power users. People who already value 
 3. **Editorial craft** — Treat every text element like it's being typeset. Proper hierarchy, intentional spacing, considered line lengths. Sweat the details that readers feel but don't notice.
 4. **Expand tokens, not exceptions** — When a new color or value is needed, add it to the design token system. Never hard-code a one-off hex value in a component.
 5. **Accessible by default** — AAA is the floor, not the ceiling. Every interactive element must be keyboard-navigable with visible focus. Every state change must be announced. Every animation must respect user preferences.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues (`nbbaier/unletter`) via the `gh` CLI; external PRs are not treated as a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

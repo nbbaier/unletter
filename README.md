@@ -70,7 +70,7 @@ bun run deploy
 
 ## Setup
 
-See [SETUP.md](./SETUP.md) for deployment and configuration instructions.
+See [docs/SETUP.md](./docs/SETUP.md) for deployment and configuration instructions.
 
 ## Project Structure
 
