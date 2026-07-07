@@ -4,7 +4,7 @@ Guidance for working in this repository.
 
 ## Project Snapshot
 
-Unletter is a Cloudflare Workers app (managed with Alchemy) that will convert newsletters to RSS. Current focus is landing page + waitlist.
+Unletter is a Cloudflare Workers app (managed with Alchemy) that converts email newsletters to RSS/Atom feeds. The core conversion pipeline is built: user auth (JWT), feed management, inbound-email webhook processing, feed generation with caching, and a public web view. The landing page + waitlist remain the public-facing surface.
 
 ## Core Commands
 
@@ -20,22 +20,20 @@ bun run destroy
 
 ## Architecture
 
-- Infrastructure is defined in `alchemy.run.ts`.
-- Worker logic lives in `src/worker.ts`.
+- Infrastructure is defined in `alchemy.run.ts` (KV namespaces `WAITLIST` + `DATA`, `RateLimiterDO` Durable Object).
+- The Hono app entry point is `src/worker.ts`; route modules live in `src/routes/`, shared logic in `src/lib/`.
 - Static assets are served from `src/assets/`.
 - Worker bindings/types are declared in `types/env.d.ts`.
+- Storage is KV-only. `docs/ARCHITECTURE.md` also describes planned systems (D1, LLM extraction fallback) that are not built.
 
 ### Worker Routes
 
-- `POST /api/waitlist`
-- Validates email format.
-- Stores signup in `WAITLIST` KV with metadata.
-- Returns `409` if email already exists.
-
-- `GET /admin/waitlist`
-- Requires Bearer auth via `ADMIN_API_KEY`.
-- Returns newest-first entries as `{ total, emails }`.
-
+- `POST /api/auth/signup`, `POST /api/auth/login` — JWT auth (`src/routes/auth.ts`).
+- `POST /api/feeds`, `GET /api/feeds`, `DELETE /api/feeds/:feedId` — authenticated feed management (`src/routes/feeds.ts`).
+- `GET /feeds/:feedId`, `/feeds/:feedId/rss`, `/feeds/:feedId/atom`, `/feeds/:feedId/view/:emailId` — public feed output and web view (`src/routes/feeds.ts`, `src/routes/viewer.ts`).
+- `POST /api/webhook/inbound` — inbound newsletter email ingestion (`src/routes/webhook.ts`).
+- `POST /api/waitlist` — waitlist signup; `409` on duplicate (`src/routes/waitlist.ts`).
+- `GET /admin/waitlist` — Bearer auth via `ADMIN_API_KEY`; newest-first `{ total, emails }`.
 - All other routes serve static assets from `ASSETS`.
 
 ## Required Patterns
@@ -49,6 +47,15 @@ bun run destroy
 
 - `ALCHEMY_PASSWORD`: required for local secret encryption.
 - `ADMIN_API_KEY`: required for `/admin/waitlist` auth.
+- `JWT_SECRET`: signs auth tokens (min 32 chars in production).
+- `WEBHOOK_SECRET`: authenticates inbound webhook calls.
+- `TURNSTILE_SECRET`, `INBOUND_EMAIL_DOMAIN`, `APP_BASE_URL`: see `src/lib/env.ts` for validation rules.
+
+## Planning & Tracking
+
+- **GitHub Issues** (`nbbaier/unletter`) are the live tracker for all executable work and PRDs. If it's worth doing, it has an issue.
+- `docs/archive/` is historical (the 2026 roadmap, migrated implementation plans, closed Phase 1 tickets, beads export, old improvement summaries). Read-only context — never treat archived roadmap checkboxes or plan tables as a backlog.
+- PRs are implementation history, not a triage surface.
 
 ## Quality Standards
 
