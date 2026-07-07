@@ -1,15 +1,9 @@
 # Plan 002: Serve the feed list from denormalized data, eliminating the N+1 KV reads
 
-> **Executor instructions**: Follow this plan step by step. Run every
-> verification command and confirm the expected result before moving to the
-> next step. If anything in the "STOP conditions" section occurs, stop and
-> report — do not improvise. When done, update the status row for this plan
-> in `plans/README.md`.
->
-> **Drift check (run first)**: `git diff --stat 917b4bc..HEAD -- src/routes/feeds.ts`
-> If `src/routes/feeds.ts` changed since this plan was written, compare the
-> "Current state" excerpts against the live code before proceeding; on a
-> mismatch, treat it as a STOP condition.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `plans/README.md`.
+
+> **Drift check (run first)**: `git diff --stat 917b4bc..HEAD -- src/routes/feeds.ts`  
+> If `src/routes/feeds.ts` changed since this plan was written, compare the "Current state" excerpts against the live code before proceeding; on a mismatch, treat it as a STOP condition.
 
 ## Status
 
@@ -22,26 +16,11 @@
 
 ## Why this matters
 
-A prior commit ("Optimize feed listing with denormalization and lazy
-migration") started storing each feed's `name`, `emailAddress`, and `createdAt`
-inline in the `user:{userId}:feeds` list so the list endpoint wouldn't need a
-KV read per feed. But `handleListFeeds` was never switched over: it still issues
-one `env.DATA.get(\`feed:${feedId}\`)` for **every** feed in the list. A user
-with 25 feeds (the cap) triggers 1 + 25 KV reads on every `GET /api/feeds`. The
-denormalized data is being written but never read — the optimization is dead.
+A prior commit ("Optimize feed listing with denormalization and lazy migration") started storing each feed's `name`, `emailAddress`, and `createdAt` inline in the `user:{userId}:feeds` list so the list endpoint wouldn't need a KV read per feed. But `handleListFeeds` was never switched over: it still issues one `env.DATA.get(\`feed:${feedId}\`)` for **every** feed in the list. A user with 25 feeds (the cap) triggers 1 + 25 KV reads on every `GET /api/feeds`. The denormalized data is being written but never read — the optimization is dead.
 
-This plan wires the read path to use the denormalized data when present, falling
-back to a per-feed fetch only for legacy string entries that predate the
-migration. After this lands, the common case is a single KV read.
+This plan wires the read path to use the denormalized data when present, falling back to a per-feed fetch only for legacy string entries that predate the migration. After this lands, the common case is a single KV read.
 
-**Important nuance (why Risk = MED):** the current per-feed fetch also acts as a
-**pruning filter** — feeds that were deleted but still linger in the user list
-return `null` from KV and get filtered out (`feeds.ts:111-127`). Reading purely
-from denormalized data loses that pruning, so a feed deleted out-of-band could
-reappear in the list. In practice `handleDeleteFeed` (`feeds.ts:212-219`) already
-removes the feed from the user list atomically with deletion, so a denormalized
-entry should never outlive its feed. This plan trusts that invariant; the STOP
-conditions and tests guard it.
+**Important nuance (why Risk = MED):** the current per-feed fetch also acts as a **pruning filter** — feeds that were deleted but still linger in the user list return `null` from KV and get filtered out (`feeds.ts:111-127`). Reading purely from denormalized data loses that pruning, so a feed deleted out-of-band could reappear in the list. In practice `handleDeleteFeed` (`feeds.ts:212-219`) already removes the feed from the user list atomically with deletion, so a denormalized entry should never outlive its feed. This plan trusts that invariant; the STOP conditions and tests guard it.
 
 ## Current state
 
@@ -74,9 +53,7 @@ conditions and tests guard it.
 
     try {
       const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
-      const userFeeds: (string | Omit<Feed, "userId">)[] = userFeedsData
-        ? JSON.parse(userFeedsData)
-        : [];
+      const userFeeds: (string | Omit<Feed, "userId">)[] = userFeedsData ? JSON.parse(userFeedsData) : [];
 
       const feedsWithNulls = await Promise.all(
         userFeeds.map(async (item) => {
@@ -109,21 +86,13 @@ conditions and tests guard it.
   }
   ```
 
-  The list entry type is `string | Omit<Feed, "userId">`. A `string` entry is a
-  legacy pre-migration id; an object entry already carries
-  `{ id, name, emailAddress, createdAt }`.
+  The list entry type is `string | Omit<Feed, "userId">`. A `string` entry is a legacy pre-migration id; an object entry already carries `{ id, name, emailAddress, createdAt }`.
 
-- `src/types.ts:8-14` — `Feed` is `{ createdAt, emailAddress, id, name, userId }`,
-  so `Omit<Feed, "userId">` is exactly the denormalized object shape.
+- `src/types.ts:8-14` — `Feed` is `{ createdAt, emailAddress, id, name, userId }`, so `Omit<Feed, "userId">` is exactly the denormalized object shape.
 
-- `src/test/feeds.routes.test.ts` — existing route tests (296 lines). It seeds
-  feeds via `handleCreateFeed` and lists via `handleListFeeds`; reuse its
-  helpers and `createMockEnv` from `src/test/utils.ts`. Note the mock KV in
-  `utils.ts:26-42` is a plain `Map` — its `get`/`put`/`delete` are synchronous
-  resolves, so you can assert on store contents directly.
+- `src/test/feeds.routes.test.ts` — existing route tests (296 lines). It seeds feeds via `handleCreateFeed` and lists via `handleListFeeds`; reuse its helpers and `createMockEnv` from `src/test/utils.ts`. Note the mock KV in `utils.ts:26-42` is a plain `Map` — its `get`/`put`/`delete` are synchronous resolves, so you can assert on store contents directly.
 
-- Repo conventions: small focused functions, early returns, no `any`
-  (`unknown` + narrowing). Match the existing style in this file.
+- Repo conventions: small focused functions, early returns, no `any` (`unknown` + narrowing). Match the existing style in this file.
 
 ## Commands you will need
 
@@ -134,15 +103,15 @@ conditions and tests guard it.
 | Tests     | `bun run test`     | all pass            |
 | Lint      | `bun run lint`     | exit 0              |
 
-> **Lint note**: `bun run lint` (Biome) passes cleanly on the current tree.
-> After your changes it must still exit 0.
+> **Lint note**: `bun run lint` (Biome) passes cleanly on the current tree. After your changes it must still exit 0.
 
 ## Scope
 
-**In scope** (the only files you should modify):
-- `src/routes/feeds.ts` (only `handleListFeeds`)
+**In scope** (the only files you should modify):  
+- `src/routes/feeds.ts` (only `handleListFeeds`)  
 - `src/test/feeds.routes.test.ts` (add tests)
 
+**Out of scope** (do NOT touch):  
 **Out of scope** (do NOT touch):
 - `handleCreateFeed`, `handleDeleteFeed`, `handleGetFeed` in the same file —
   the write/delete/RSS paths are correct and out of scope.
