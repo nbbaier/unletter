@@ -19,6 +19,12 @@ export default defineConfig({
         "src/assets/**",
         "types/**",
       ],
+      thresholds: {
+        statements: 70,
+        branches: 55,
+        functions: 65,
+        lines: 70,
+      },
     },
   },
 });
