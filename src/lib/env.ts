@@ -34,6 +34,21 @@ function validateJwtSecret(value: string, errors: string[]): void {
   }
 }
 
+function validateWebhookSecret(value: string, errors: string[]): void {
+  if (!value || value.trim() === "") {
+    errors.push(
+      "WEBHOOK_SECRET must be set to a non-empty, secure value in production. This secret authenticates the inbound email webhook."
+    );
+    return;
+  }
+
+  if (value === "change-me-in-production") {
+    errors.push(
+      "WEBHOOK_SECRET must be set to a secure value in production. This secret authenticates the inbound email webhook."
+    );
+  }
+}
+
 function validateAppBaseUrl(value: string, errors: string[]): void {
   if (!value) {
     errors.push("APP_BASE_URL must be set to a valid absolute URL.");
@@ -56,12 +71,7 @@ export function validateEnv(env: typeof worker.Env): void {
 
   validateAdminApiKey(env.ADMIN_API_KEY, errors);
   validateJwtSecret(env.JWT_SECRET, errors);
-
-  if (env.WEBHOOK_SECRET === "change-me-in-production") {
-    warnings.push(
-      "WEBHOOK_SECRET should be set to a secure value for webhook security."
-    );
-  }
+  validateWebhookSecret(env.WEBHOOK_SECRET, errors);
 
   const inboundEmailDomain = env.INBOUND_EMAIL_DOMAIN?.trim();
   if (!inboundEmailDomain) {
