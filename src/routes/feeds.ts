@@ -141,6 +141,28 @@ export async function handleListFeeds(
   }
 }
 
+async function removeFeedFromUserIndex(
+  env: WorkerEnv,
+  userId: string,
+  feedId: string
+): Promise<boolean> {
+  const userFeedsData = await env.DATA.get(`user:${userId}:feeds`);
+  const userFeeds: (string | Omit<Feed, "userId">)[] = userFeedsData
+    ? JSON.parse(userFeedsData)
+    : [];
+  const updatedFeeds = userFeeds.filter((item) => {
+    const id = typeof item === "string" ? item : item.id;
+    return id !== feedId;
+  });
+
+  if (updatedFeeds.length === userFeeds.length) {
+    return false;
+  }
+
+  await env.DATA.put(`user:${userId}:feeds`, JSON.stringify(updatedFeeds));
+  return true;
+}
+
 export async function handleDeleteFeed(
   request: Request,
   env: WorkerEnv,
@@ -156,6 +178,17 @@ export async function handleDeleteFeed(
     // Get feed and verify ownership
     const feedData = await env.DATA.get(`feed:${feedId}`);
     if (!feedData) {
+      // The blob can be gone while an index entry survives if a previous
+      // delete failed partway; prune it so retrying the delete heals the
+      // list instead of 404ing forever.
+      const removedDangling = await removeFeedFromUserIndex(
+        env,
+        auth.userId,
+        feedId
+      );
+      if (removedDangling) {
+        return jsonResponse({ message: "Feed deleted" });
+      }
       return jsonResponse({ error: "Feed not found" }, 404);
     }
 
@@ -205,26 +238,17 @@ export async function handleDeleteFeed(
       })()
     );
 
-    // Always clean up feed metadata and user index
+    // Remove from the user index before deleting the blob: a failure
+    // partway then leaves an orphaned blob (invisible, delete retryable)
+    // rather than a listed feed that no longer exists.
+    await removeFeedFromUserIndex(env, auth.userId, feedId);
+
+    // Always clean up feed metadata
     await env.DATA.delete(`feed:${feedId}`);
     await env.DATA.delete(`feed:${feedId}:emails`);
     // Clean up cache
     await env.DATA.delete(`feed:${feedId}:rss`);
     await env.DATA.delete(`feed:${feedId}:atom`);
-
-    // Remove from user's feed list
-    const userFeedsData = await env.DATA.get(`user:${auth.userId}:feeds`);
-    const userFeeds: (string | Omit<Feed, "userId">)[] = userFeedsData
-      ? JSON.parse(userFeedsData)
-      : [];
-    const updatedFeeds = userFeeds.filter((item) => {
-      const id = typeof item === "string" ? item : item.id;
-      return id !== feedId;
-    });
-    await env.DATA.put(
-      `user:${auth.userId}:feeds`,
-      JSON.stringify(updatedFeeds)
-    );
 
     return jsonResponse({ message: "Feed deleted" });
   } catch (error) {
