@@ -105,9 +105,17 @@ export async function handleListFeeds(
 
     const feedsWithNulls = await Promise.all(
       userFeeds.map(async (item) => {
-        const feedId = typeof item === "string" ? item : item.id;
-        const feedData = await env.DATA.get(`feed:${feedId}`);
+        if (typeof item !== "string") {
+          return {
+            id: item.id,
+            name: item.name,
+            emailAddress: item.emailAddress,
+            createdAt: item.createdAt,
+          };
+        }
 
+        // Legacy string entry predating denormalization: fetch to hydrate.
+        const feedData = await env.DATA.get(`feed:${item}`);
         if (!feedData) {
           return null;
         }

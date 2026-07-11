@@ -180,6 +180,104 @@ describe("Feed Management API", () => {
       expect(data.feeds.length).toBeGreaterThan(0);
     });
 
+    it("should serve denormalized entries without per-feed KV reads", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+      const userId = await env.DATA.get("user:email:testuser@example.com");
+
+      const seededFeeds = [
+        {
+          id: "feed-1",
+          name: "First Feed",
+          emailAddress: "feed-1@unletter.app",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "feed-2",
+          name: "Second Feed",
+          emailAddress: "feed-2@unletter.app",
+          createdAt: "2026-01-02T00:00:00.000Z",
+        },
+      ];
+      await env.DATA.put(`user:${userId}:feeds`, JSON.stringify(seededFeeds));
+
+      const originalGet = env.DATA.get.bind(env.DATA);
+      let feedKeyReads = 0;
+      env.DATA.get = ((key: string) => {
+        if (key.startsWith("feed:")) {
+          feedKeyReads += 1;
+        }
+        return originalGet(key);
+      }) as typeof env.DATA.get;
+
+      const response = await handleListFeeds(
+        createMockRequest("GET", undefined, {
+          Authorization: `Bearer ${token}`,
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      const data = (await response.json()) as { feeds: unknown[] };
+      expect(data.feeds).toEqual(seededFeeds);
+      expect(feedKeyReads).toBe(0);
+    });
+
+    it("should hydrate legacy string entries via per-feed fetch", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+      const userId = await env.DATA.get("user:email:testuser@example.com");
+
+      await env.DATA.put(`user:${userId}:feeds`, JSON.stringify(["legacy-1"]));
+      await env.DATA.put(
+        "feed:legacy-1",
+        JSON.stringify({
+          id: "legacy-1",
+          userId,
+          name: "Legacy Feed",
+          emailAddress: "legacy-1@unletter.app",
+          createdAt: "2025-12-01T00:00:00.000Z",
+        })
+      );
+
+      const response = await handleListFeeds(
+        createMockRequest("GET", undefined, {
+          Authorization: `Bearer ${token}`,
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      const data = (await response.json()) as { feeds: unknown[] };
+      expect(data.feeds).toEqual([
+        {
+          id: "legacy-1",
+          name: "Legacy Feed",
+          emailAddress: "legacy-1@unletter.app",
+          createdAt: "2025-12-01T00:00:00.000Z",
+        },
+      ]);
+    });
+
+    it("should prune legacy string entries whose feed is missing", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+      const userId = await env.DATA.get("user:email:testuser@example.com");
+
+      await env.DATA.put(`user:${userId}:feeds`, JSON.stringify(["ghost-1"]));
+
+      const response = await handleListFeeds(
+        createMockRequest("GET", undefined, {
+          Authorization: `Bearer ${token}`,
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      const data = (await response.json()) as { feeds: unknown[] };
+      expect(data.feeds).toEqual([]);
+    });
+
     it("should return empty array for user with no feeds", async () => {
       const env = createMockEnv();
       const token = await createTestUserAndGetToken(env);
