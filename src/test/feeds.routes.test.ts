@@ -180,6 +180,104 @@ describe("Feed Management API", () => {
       expect(data.feeds.length).toBeGreaterThan(0);
     });
 
+    it("should serve denormalized entries without per-feed KV reads", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+      const userId = await env.DATA.get("user:email:testuser@example.com");
+
+      const seededFeeds = [
+        {
+          id: "feed-1",
+          name: "First Feed",
+          emailAddress: "feed-1@unletter.app",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "feed-2",
+          name: "Second Feed",
+          emailAddress: "feed-2@unletter.app",
+          createdAt: "2026-01-02T00:00:00.000Z",
+        },
+      ];
+      await env.DATA.put(`user:${userId}:feeds`, JSON.stringify(seededFeeds));
+
+      const originalGet = env.DATA.get.bind(env.DATA);
+      let feedKeyReads = 0;
+      env.DATA.get = ((key: string) => {
+        if (key.startsWith("feed:")) {
+          feedKeyReads += 1;
+        }
+        return originalGet(key);
+      }) as typeof env.DATA.get;
+
+      const response = await handleListFeeds(
+        createMockRequest("GET", undefined, {
+          Authorization: `Bearer ${token}`,
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      const data = (await response.json()) as { feeds: unknown[] };
+      expect(data.feeds).toEqual(seededFeeds);
+      expect(feedKeyReads).toBe(0);
+    });
+
+    it("should hydrate legacy string entries via per-feed fetch", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+      const userId = await env.DATA.get("user:email:testuser@example.com");
+
+      await env.DATA.put(`user:${userId}:feeds`, JSON.stringify(["legacy-1"]));
+      await env.DATA.put(
+        "feed:legacy-1",
+        JSON.stringify({
+          id: "legacy-1",
+          userId,
+          name: "Legacy Feed",
+          emailAddress: "legacy-1@unletter.app",
+          createdAt: "2025-12-01T00:00:00.000Z",
+        })
+      );
+
+      const response = await handleListFeeds(
+        createMockRequest("GET", undefined, {
+          Authorization: `Bearer ${token}`,
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      const data = (await response.json()) as { feeds: unknown[] };
+      expect(data.feeds).toEqual([
+        {
+          id: "legacy-1",
+          name: "Legacy Feed",
+          emailAddress: "legacy-1@unletter.app",
+          createdAt: "2025-12-01T00:00:00.000Z",
+        },
+      ]);
+    });
+
+    it("should prune legacy string entries whose feed is missing", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+      const userId = await env.DATA.get("user:email:testuser@example.com");
+
+      await env.DATA.put(`user:${userId}:feeds`, JSON.stringify(["ghost-1"]));
+
+      const response = await handleListFeeds(
+        createMockRequest("GET", undefined, {
+          Authorization: `Bearer ${token}`,
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      const data = (await response.json()) as { feeds: unknown[] };
+      expect(data.feeds).toEqual([]);
+    });
+
     it("should return empty array for user with no feeds", async () => {
       const env = createMockEnv();
       const token = await createTestUserAndGetToken(env);
@@ -247,6 +345,117 @@ describe("Feed Management API", () => {
       await expect(env.DATA.get("email:email-1")).resolves.toBeNull();
       await expect(env.DATA.get("email:email-2")).resolves.toBeNull();
       await expect(env.DATA.get(`feed:${feedId}:cleanup`)).resolves.toBeNull();
+    });
+
+    it("should return 404 for a feed that never existed", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+
+      const response = await handleDeleteFeed(
+        createMockRequest(
+          "DELETE",
+          undefined,
+          { Authorization: `Bearer ${token}` },
+          "http://localhost/api/feeds/no-such-feed"
+        ),
+        env,
+        { waitUntil: () => undefined },
+        "no-such-feed"
+      );
+
+      expect(response.status).toBe(404);
+    });
+
+    it("should prune a dangling index entry when the feed blob is missing", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+      const userId = await env.DATA.get("user:email:testuser@example.com");
+
+      // Simulate a previous delete that removed the blob but failed before
+      // updating the user index.
+      await env.DATA.put(
+        `user:${userId}:feeds`,
+        JSON.stringify([
+          {
+            id: "ghost-1",
+            name: "Ghost Feed",
+            emailAddress: "ghost-1@unletter.app",
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
+        ])
+      );
+
+      const deleteResponse = await handleDeleteFeed(
+        createMockRequest(
+          "DELETE",
+          undefined,
+          { Authorization: `Bearer ${token}` },
+          "http://localhost/api/feeds/ghost-1"
+        ),
+        env,
+        { waitUntil: () => undefined },
+        "ghost-1"
+      );
+
+      expect(deleteResponse.status).toBe(200);
+
+      const listResponse = await handleListFeeds(
+        createMockRequest("GET", undefined, {
+          Authorization: `Bearer ${token}`,
+        }),
+        env
+      );
+      const data = (await listResponse.json()) as { feeds: unknown[] };
+      expect(data.feeds).toEqual([]);
+    });
+
+    it("should not list a feed when blob deletion fails after index update", async () => {
+      const env = createMockEnv();
+      const token = await createTestUserAndGetToken(env);
+
+      const createResponse = await handleCreateFeed(
+        createMockRequest(
+          "POST",
+          { name: "Doomed Feed" },
+          { Authorization: `Bearer ${token}` }
+        ),
+        env
+      );
+      const createData = (await createResponse.json()) as {
+        feed: { id: string };
+      };
+      const feedId = createData.feed.id;
+
+      const originalDelete = env.DATA.delete.bind(env.DATA);
+      env.DATA.delete = ((key: string) => {
+        if (key === `feed:${feedId}`) {
+          return Promise.reject(new Error("KV delete failed"));
+        }
+        return originalDelete(key);
+      }) as typeof env.DATA.delete;
+
+      const deleteResponse = await handleDeleteFeed(
+        createMockRequest(
+          "DELETE",
+          undefined,
+          { Authorization: `Bearer ${token}` },
+          `http://localhost/api/feeds/${feedId}`
+        ),
+        env,
+        { waitUntil: () => undefined },
+        feedId
+      );
+
+      expect(deleteResponse.status).toBe(500);
+
+      const listResponse = await handleListFeeds(
+        createMockRequest("GET", undefined, {
+          Authorization: `Bearer ${token}`,
+        }),
+        env
+      );
+      const data = (await listResponse.json()) as { feeds: unknown[] };
+      expect(data.feeds).toEqual([]);
     });
   });
 
