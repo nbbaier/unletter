@@ -10,7 +10,7 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
+  for (let i = 0; i < binary.length; i += 1) {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes.buffer;
@@ -30,10 +30,10 @@ export async function hashPassword(password: string): Promise<string> {
 
   const hash = await crypto.subtle.deriveBits(
     {
+      hash: HASH_ALGORITHM,
+      iterations: ITERATIONS,
       name: "PBKDF2",
       salt,
-      iterations: ITERATIONS,
-      hash: HASH_ALGORITHM,
     },
     keyMaterial,
     256
@@ -67,10 +67,10 @@ export async function verifyPassword(
 
   const hash = await crypto.subtle.deriveBits(
     {
+      hash: HASH_ALGORITHM,
+      iterations: ITERATIONS,
       name: "PBKDF2",
       salt,
-      iterations: ITERATIONS,
-      hash: HASH_ALGORITHM,
     },
     keyMaterial,
     256
@@ -108,18 +108,18 @@ export async function createToken(
   const header = { alg: "HS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
   const payload: JWTPayload = {
-    sub: userId,
-    iat: now,
     exp: now + JWT_EXPIRY_SECONDS,
+    iat: now,
+    sub: userId,
   };
 
   const encoder = new TextEncoder();
   const headerB64 = btoa(JSON.stringify(header))
-    .replace(/=/g, "")
+    .replace(/[=]/g, "")
     .replace(/\+/g, "-")
     .replace(/\//g, "_");
   const payloadB64 = btoa(JSON.stringify(payload))
-    .replace(/=/g, "")
+    .replace(/[=]/g, "")
     .replace(/\+/g, "-")
     .replace(/\//g, "_");
 
@@ -128,7 +128,7 @@ export async function createToken(
   const key = await crypto.subtle.importKey(
     "raw",
     encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
+    { hash: "SHA-256", name: "HMAC" },
     false,
     ["sign"]
   );
@@ -136,7 +136,7 @@ export async function createToken(
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
 
   const signatureB64 = arrayBufferToBase64(signature)
-    .replace(/=/g, "")
+    .replace(/[=]/g, "")
     .replace(/\+/g, "-")
     .replace(/\//g, "_");
 
@@ -159,7 +159,7 @@ export async function verifyToken(
   const key = await crypto.subtle.importKey(
     "raw",
     encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
+    { hash: "SHA-256", name: "HMAC" },
     false,
     ["verify"]
   );

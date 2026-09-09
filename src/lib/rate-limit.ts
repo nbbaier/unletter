@@ -47,9 +47,9 @@ export class RateLimiter {
     if (count >= this.config.limit) {
       return {
         allowed: false,
+        limit: this.config.limit,
         remaining: 0,
         resetAt,
-        limit: this.config.limit,
       };
     }
 
@@ -60,9 +60,9 @@ export class RateLimiter {
 
     return {
       allowed: true,
+      limit: this.config.limit,
       remaining: this.config.limit - count - 1,
       resetAt,
-      limit: this.config.limit,
     };
   }
 }
@@ -87,9 +87,9 @@ export class DurableRateLimiter {
       const stub = this.namespace.get(id);
 
       const response = await stub.fetch(`http://rate-limiter/${key}`, {
-        method: "POST",
         body: JSON.stringify(this.config),
         headers: { "Content-Type": "application/json" },
+        method: "POST",
       });
 
       if (!response.ok) {
@@ -109,9 +109,9 @@ export class DurableRateLimiter {
   private failOpen(): RateLimitResult {
     return {
       allowed: true,
+      limit: this.config.limit,
       remaining: this.config.limit,
       resetAt: Math.floor(Date.now() / 1000) + this.config.window,
-      limit: this.config.limit,
     };
   }
 }
@@ -132,15 +132,15 @@ export function rateLimitResponse(result: RateLimitResult): Response {
       retryAfter,
     }),
     {
-      status: 429,
       headers: {
+        "access-control-allow-origin": "*",
         "content-type": "application/json",
         "retry-after": String(retryAfter),
         "x-ratelimit-limit": String(result.limit),
         "x-ratelimit-remaining": String(result.remaining),
         "x-ratelimit-reset": String(result.resetAt),
-        "access-control-allow-origin": "*",
       },
+      status: 429,
     }
   );
 }

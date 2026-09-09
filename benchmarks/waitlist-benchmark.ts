@@ -2,31 +2,31 @@ import { handleAdminList } from "../src/routes/waitlist";
 
 // Mock environment
 const mockEnv = {
+  ADMIN_API_KEY: "test-key",
   WAITLIST: {
-    list: async () => ({
-      keys: Array.from({ length: 100 }, (_, i) => ({
-        name: `user${i}@example.com`,
-        metadata: {
-          email: `user${i}@example.com`,
-          timestamp: new Date().toISOString(),
-          userAgent: "benchmark-agent",
-          referrer: "benchmark",
-        },
-      })),
-      list_complete: true,
-    }),
     get: async (key: string) => {
       // Simulate network latency
       await new Promise((resolve) => setTimeout(resolve, 10));
       return JSON.stringify({
         email: key,
+        referrer: "benchmark",
         timestamp: new Date().toISOString(),
         userAgent: "benchmark-agent",
-        referrer: "benchmark",
       });
     },
+    list: async () => ({
+      keys: Array.from({ length: 100 }, (_, i) => ({
+        metadata: {
+          email: `user${i}@example.com`,
+          referrer: "benchmark",
+          timestamp: new Date().toISOString(),
+          userAgent: "benchmark-agent",
+        },
+        name: `user${i}@example.com`,
+      })),
+      list_complete: true,
+    }),
   },
-  ADMIN_API_KEY: "test-key",
 };
 
 // Benchmark function
@@ -35,10 +35,10 @@ async function runBenchmark() {
   const start = performance.now();
 
   const request = new Request("http://localhost/admin/waitlist", {
-    method: "GET",
     headers: {
       Authorization: "Bearer test-key",
     },
+    method: "GET",
   });
 
   // @ts-expect-error

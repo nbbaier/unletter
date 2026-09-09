@@ -30,6 +30,7 @@ class MockKV {
 async function sequentialDelete(kv: MockKV, emailIds: string[]) {
   const start = performance.now();
   for (const emailId of emailIds) {
+    // biome-ignore lint/performance/noAwaitInLoops: sequential delete is intentional for benchmark comparison
     await kv.delete(`email:${emailId}`);
   }
   const end = performance.now();

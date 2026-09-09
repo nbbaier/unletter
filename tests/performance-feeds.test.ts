@@ -12,29 +12,29 @@ const mockData = new Map<string, string>();
 
 // Populate data
 const feedIds: string[] = [];
-for (let i = 0; i < FEED_COUNT; i++) {
+for (let i = 0; i < FEED_COUNT; i += 1) {
   const feedId = `feed-${i}`;
   feedIds.push(feedId);
   mockData.set(
     `feed:${feedId}`,
     JSON.stringify({
+      createdAt: new Date().toISOString(),
+      emailAddress: `feed${i}@example.com`,
       id: feedId,
       name: `Feed ${i}`,
-      emailAddress: `feed${i}@example.com`,
-      createdAt: new Date().toISOString(),
     })
   );
 }
 mockData.set(`user:${USER_ID}:feeds`, JSON.stringify(feedIds));
 
 const mockEnv = {
-  JWT_SECRET,
   DATA: {
     get: async (key: string) => {
       await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
       return mockData.get(key) || null;
     },
   },
+  JWT_SECRET,
 } as unknown as Parameters<typeof handleListFeeds>[1];
 
 describe("Performance Baseline", () => {

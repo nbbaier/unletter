@@ -7,26 +7,26 @@ import { createMockEnv } from "./utils.ts";
 
 function createWebhookPayload(emailId: string, feedId: string) {
   return {
-    event: "email.received",
-    timestamp: new Date().toISOString(),
     email: {
+      from: {
+        addresses: [{ address: "sender@example.com", name: "Sender" }],
+        text: "sender@example.com",
+      },
       id: emailId,
+      parsedData: {
+        htmlBody: `<p>HTML ${emailId}</p>`,
+        textBody: `Plain text ${emailId}`,
+      },
+      receivedAt: new Date().toISOString(),
       recipient: `${feedId}@unletter.app`,
       subject: `Subject ${emailId}`,
-      receivedAt: new Date().toISOString(),
-      from: {
-        text: "sender@example.com",
-        addresses: [{ address: "sender@example.com", name: "Sender" }],
-      },
       to: {
-        text: `${feedId}@unletter.app`,
         addresses: [{ address: `${feedId}@unletter.app` }],
-      },
-      parsedData: {
-        textBody: `Plain text ${emailId}`,
-        htmlBody: `<p>HTML ${emailId}</p>`,
+        text: `${feedId}@unletter.app`,
       },
     },
+    event: "email.received",
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -34,11 +34,11 @@ async function seedFeed(env: ReturnType<typeof createMockEnv>, feedId: string) {
   await env.DATA.put(
     `feed:${feedId}`,
     JSON.stringify({
-      id: feedId,
-      userId: "user-1",
-      name: "Test Feed",
-      emailAddress: `${feedId}@${env.INBOUND_EMAIL_DOMAIN}`,
       createdAt: new Date().toISOString(),
+      emailAddress: `${feedId}@${env.INBOUND_EMAIL_DOMAIN}`,
+      id: feedId,
+      name: "Test Feed",
+      userId: "user-1",
     })
   );
   await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify([]));
@@ -46,12 +46,12 @@ async function seedFeed(env: ReturnType<typeof createMockEnv>, feedId: string) {
 
 function createWebhookRequest(payload: unknown, secret: string): Request {
   return new Request("http://localhost/api/webhook/inbound", {
-    method: "POST",
+    body: JSON.stringify(payload),
     headers: {
       "content-type": "application/json",
       "x-webhook-verification-token": secret,
     },
-    body: JSON.stringify(payload),
+    method: "POST",
   });
 }
 
@@ -91,6 +91,7 @@ describe("Webhook Routes", () => {
     const totalEmails = MAX_EMAILS_PER_FEED + 5;
     for (let index = 0; index < totalEmails; index += 1) {
       const payload = createWebhookPayload(`email-${index}`, feedId);
+      // biome-ignore lint/performance/noAwaitInLoops: sequential ingestion required for retention test
       const response = await handleInboundWebhook(
         createWebhookRequest(payload, env.WEBHOOK_SECRET),
         env

@@ -12,12 +12,12 @@ function createMockRequest(
   headers?: Record<string, string>
 ): Request {
   return new Request("http://localhost/api/auth/signup", {
-    method,
+    body: body ? JSON.stringify(body) : undefined,
     headers: {
       "Content-Type": "application/json",
       ...headers,
     },
-    body: body ? JSON.stringify(body) : undefined,
+    method,
   });
 }
 

@@ -18,8 +18,7 @@ export function extractWebViewLink(html: string): string | undefined {
 
   let match = ANCHOR_REGEX.exec(html);
   while (match !== null) {
-    const href = match[1];
-    const linkText = match[2];
+    const [, href, linkText] = match;
 
     // Basic validation that it's a real URL before doing regex matching
     if (href.startsWith("http://") || href.startsWith("https://")) {
@@ -32,6 +31,4 @@ export function extractWebViewLink(html: string): string | undefined {
     }
     match = ANCHOR_REGEX.exec(html);
   }
-
-  return;
 }

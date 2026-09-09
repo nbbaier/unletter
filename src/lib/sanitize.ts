@@ -176,13 +176,13 @@ function parseTagAt(
   );
 
   return {
+    nextIndex: tagEnd + 1,
     tag: {
-      tagName,
       attributes,
       isClosing,
       isSelfClosing,
+      tagName,
     },
-    nextIndex: tagEnd + 1,
   };
 }
 
@@ -192,22 +192,22 @@ function extractTagNameAndAttributes(
 ): { attributes: string; tagName: string } {
   if (isClosing) {
     return {
-      tagName: tagContent.slice(1).split(TAG_WHITESPACE)[0].toLowerCase(),
       attributes: "",
+      tagName: tagContent.slice(1).split(TAG_WHITESPACE)[0].toLowerCase(),
     };
   }
 
   const spaceIndex = tagContent.search(TAG_WHITESPACE);
   if (spaceIndex === -1) {
     return {
-      tagName: stripTrailingSlash(tagContent).toLowerCase(),
       attributes: "",
+      tagName: stripTrailingSlash(tagContent).toLowerCase(),
     };
   }
 
   return {
-    tagName: tagContent.slice(0, spaceIndex).toLowerCase(),
     attributes: stripTrailingSlash(tagContent.slice(spaceIndex + 1)).trim(),
+    tagName: tagContent.slice(0, spaceIndex).toLowerCase(),
   };
 }
 
@@ -375,8 +375,8 @@ function sanitizeAttributes(tagName: string, attributes: string): string {
 
 function getAllowedAttributes(tagName: string): Set<string> {
   return new Set([
-    ...(ALLOWED_ATTRIBUTES["*"] || []),
-    ...(ALLOWED_ATTRIBUTES[tagName] || []),
+    ...ALLOWED_ATTRIBUTES["*"],
+    ...(ALLOWED_ATTRIBUTES[tagName] ?? []),
   ]);
 }
 
@@ -454,8 +454,8 @@ export function sanitizeEmailContent(html: string): {
   const sanitizedHtml = sanitizeHtml(html);
 
   return {
-    sanitizedHtml,
-    hasScript,
     hasInlineStyle,
+    hasScript,
+    sanitizedHtml,
   };
 }

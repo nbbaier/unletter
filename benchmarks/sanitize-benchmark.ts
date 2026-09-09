@@ -23,13 +23,13 @@ function runBenchmark() {
   console.log("Starting benchmark for sanitizeHtml...");
 
   // Warmup
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 10; i += 1) {
     sanitizeHtml(htmlWithManyAttributes);
   }
 
   const iterations = 100;
   const start = performance.now();
-  for (let i = 0; i < iterations; i++) {
+  for (let i = 0; i < iterations; i += 1) {
     sanitizeHtml(htmlWithManyAttributes);
   }
   const end = performance.now();

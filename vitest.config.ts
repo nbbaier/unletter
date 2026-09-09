@@ -2,29 +2,29 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    globals: true,
-    environment: "miniflare",
-    environmentOptions: {
-      modules: true,
-      scriptPath: "./src/worker.ts",
-      kvNamespaces: ["DATA", "WAITLIST"],
-    },
-    include: ["src/**/*.test.ts"],
     coverage: {
-      provider: "v8",
-      reporter: ["text", "json", "html"],
       exclude: [
         "node_modules/",
         "src/**/*.test.ts",
         "src/assets/**",
         "types/**",
       ],
+      provider: "v8",
+      reporter: ["text", "json", "html"],
       thresholds: {
-        statements: 70,
         branches: 55,
         functions: 65,
         lines: 70,
+        statements: 70,
       },
     },
+    environment: "miniflare",
+    environmentOptions: {
+      kvNamespaces: ["DATA", "WAITLIST"],
+      modules: true,
+      scriptPath: "./src/worker.ts",
+    },
+    globals: true,
+    include: ["src/**/*.test.ts"],
   },
 });

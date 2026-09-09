@@ -15,12 +15,12 @@ function createMockRequest(
   url = "http://localhost/api/feeds"
 ): Request {
   return new Request(url, {
-    method,
+    body: body ? JSON.stringify(body) : undefined,
     headers: {
       "Content-Type": "application/json",
       ...headers,
     },
-    body: body ? JSON.stringify(body) : undefined,
+    method,
   });
 }
 
@@ -125,6 +125,7 @@ describe("Feed Management API", () => {
       const token = await createTestUserAndGetToken(env);
 
       for (let index = 0; index < 25; index += 1) {
+        // biome-ignore lint/performance/noAwaitInLoops: sequential creation required for quota enforcement test
         const response = await handleCreateFeed(
           createMockRequest(
             "POST",
@@ -187,16 +188,16 @@ describe("Feed Management API", () => {
 
       const seededFeeds = [
         {
+          createdAt: "2026-01-01T00:00:00.000Z",
+          emailAddress: "feed-1@unletter.app",
           id: "feed-1",
           name: "First Feed",
-          emailAddress: "feed-1@unletter.app",
-          createdAt: "2026-01-01T00:00:00.000Z",
         },
         {
+          createdAt: "2026-01-02T00:00:00.000Z",
+          emailAddress: "feed-2@unletter.app",
           id: "feed-2",
           name: "Second Feed",
-          emailAddress: "feed-2@unletter.app",
-          createdAt: "2026-01-02T00:00:00.000Z",
         },
       ];
       await env.DATA.put(`user:${userId}:feeds`, JSON.stringify(seededFeeds));
@@ -232,11 +233,11 @@ describe("Feed Management API", () => {
       await env.DATA.put(
         "feed:legacy-1",
         JSON.stringify({
-          id: "legacy-1",
-          userId,
-          name: "Legacy Feed",
-          emailAddress: "legacy-1@unletter.app",
           createdAt: "2025-12-01T00:00:00.000Z",
+          emailAddress: "legacy-1@unletter.app",
+          id: "legacy-1",
+          name: "Legacy Feed",
+          userId,
         })
       );
 
@@ -251,10 +252,10 @@ describe("Feed Management API", () => {
       const data = (await response.json()) as { feeds: unknown[] };
       expect(data.feeds).toEqual([
         {
+          createdAt: "2025-12-01T00:00:00.000Z",
+          emailAddress: "legacy-1@unletter.app",
           id: "legacy-1",
           name: "Legacy Feed",
-          emailAddress: "legacy-1@unletter.app",
-          createdAt: "2025-12-01T00:00:00.000Z",
         },
       ]);
     });
@@ -377,10 +378,10 @@ describe("Feed Management API", () => {
         `user:${userId}:feeds`,
         JSON.stringify([
           {
+            createdAt: "2026-01-01T00:00:00.000Z",
+            emailAddress: "ghost-1@unletter.app",
             id: "ghost-1",
             name: "Ghost Feed",
-            emailAddress: "ghost-1@unletter.app",
-            createdAt: "2026-01-01T00:00:00.000Z",
           },
         ])
       );
@@ -467,11 +468,11 @@ describe("Feed Management API", () => {
       await env.DATA.put(
         `feed:${feedId}`,
         JSON.stringify({
-          id: feedId,
-          userId: "user-1",
-          name: "ETag Test Feed",
-          emailAddress: `${feedId}@unletter.app`,
           createdAt: new Date().toISOString(),
+          emailAddress: `${feedId}@unletter.app`,
+          id: feedId,
+          name: "ETag Test Feed",
+          userId: "user-1",
         })
       );
       await env.DATA.put(`feed:${feedId}:emails`, JSON.stringify([]));

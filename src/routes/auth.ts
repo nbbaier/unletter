@@ -52,10 +52,10 @@ export async function handleSignup(
     const passwordHash = await hashPassword(password);
 
     const user: User = {
-      id: userId,
-      email,
-      passwordHash,
       createdAt: new Date().toISOString(),
+      email,
+      id: userId,
+      passwordHash,
     };
 
     // Store user and email index
@@ -70,8 +70,8 @@ export async function handleSignup(
       {
         token,
         user: {
-          id: userId,
           email,
+          id: userId,
         },
       },
       201
@@ -130,8 +130,8 @@ export async function handleLogin(
     return jsonResponse({
       token,
       user: {
-        id: userId,
         email: user.email,
+        id: userId,
       },
     });
   } catch (error) {

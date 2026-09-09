@@ -36,10 +36,10 @@ export async function handleWebView(
 
     // Format date
     const date = new Date(email.timestamp).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
       weekday: "long",
       year: "numeric",
-      month: "long",
-      day: "numeric",
     });
 
     // Build HTML page
@@ -130,14 +130,14 @@ export async function handleWebView(
 
     return new Response(html, {
       headers: {
-        "content-type": "text/html; charset=utf-8",
         "cache-control": "public, max-age=3600",
         // CSP to mitigate XSS from newsletter HTML content
         "content-security-policy":
           "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src * data:; frame-src 'none';",
+        "content-type": "text/html; charset=utf-8",
+        "referrer-policy": "strict-origin-when-cross-origin",
         "x-content-type-options": "nosniff",
         "x-frame-options": "DENY",
-        "referrer-policy": "strict-origin-when-cross-origin",
       },
     });
   } catch (error) {

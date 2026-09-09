@@ -4,11 +4,11 @@ import { createMockEnv } from "./utils.ts";
 
 function createWaitlistRequest(body: unknown): Request {
   return new Request("http://localhost/api/waitlist", {
-    method: "POST",
+    body: JSON.stringify(body),
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify(body),
+    method: "POST",
   });
 }
 

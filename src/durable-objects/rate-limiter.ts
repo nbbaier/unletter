@@ -41,9 +41,9 @@ export class RateLimiterDO implements DurableObject {
       if (current >= config.limit) {
         result = {
           allowed: false,
+          limit: config.limit,
           remaining: 0,
           resetAt,
-          limit: config.limit,
         };
         return;
       }
@@ -52,9 +52,9 @@ export class RateLimiterDO implements DurableObject {
 
       result = {
         allowed: true,
+        limit: config.limit,
         remaining: config.limit - current - 1,
         resetAt,
-        limit: config.limit,
       };
     });
 

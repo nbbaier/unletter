@@ -3,7 +3,6 @@ import type { worker } from "../alchemy.run.ts";
 import { handleInboundWebhook } from "../src/routes/webhook.ts";
 
 const mockEnv = {
-  WEBHOOK_SECRET: "secret",
   DATA: {
     get: async (key: string) => {
       await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate 50ms latency for all gets
@@ -19,39 +18,40 @@ const mockEnv = {
       await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate 50ms latency for all puts
     },
   },
+  WEBHOOK_SECRET: "secret",
 };
 
 const payload = {
-  event: "inbound",
-  timestamp: new Date().toISOString(),
   email: {
-    id: "new-email-id",
     from: {
-      text: "Sender <sender@example.com>",
       addresses: [{ address: "sender@example.com", name: "Sender" }],
+      text: "Sender <sender@example.com>",
     },
-    to: {
-      text: "test-feed-id@unletter.app",
-      addresses: [{ address: "test-feed-id@unletter.app" }],
+    id: "new-email-id",
+    parsedData: {
+      htmlBody: "<p>Hello</p>",
+      textBody: "Hello",
     },
+    receivedAt: new Date().toISOString(),
     recipient: "test-feed-id@unletter.app",
     subject: "Test Subject",
-    receivedAt: new Date().toISOString(),
-    parsedData: {
-      textBody: "Hello",
-      htmlBody: "<p>Hello</p>",
+    to: {
+      addresses: [{ address: "test-feed-id@unletter.app" }],
+      text: "test-feed-id@unletter.app",
     },
   },
+  event: "inbound",
+  timestamp: new Date().toISOString(),
 };
 
 const mockRequest = () =>
   new Request("http://localhost/api/webhook/inbound", {
-    method: "POST",
-    headers: {
-      "x-webhook-verification-token": "secret",
-      "content-type": "application/json",
-    },
     body: JSON.stringify(payload),
+    headers: {
+      "content-type": "application/json",
+      "x-webhook-verification-token": "secret",
+    },
+    method: "POST",
   });
 
 async function runBenchmark() {
@@ -59,8 +59,9 @@ async function runBenchmark() {
   const iterations = 5;
   let totalTime = 0;
 
-  for (let i = 0; i < iterations; i++) {
+  for (let i = 0; i < iterations; i += 1) {
     const start = performance.now();
+    // biome-ignore lint/performance/noAwaitInLoops: sequential timing per iteration is intentional
     await handleInboundWebhook(
       mockRequest(),
       mockEnv as unknown as typeof worker.Env

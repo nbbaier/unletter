@@ -1,39 +1,39 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>unletter - Turn newsletters into RSS feeds</title>
     <meta
+      content="Subscribe to your favorite email newsletters in your RSS reader. No more cluttered inbox."
       name="description"
-      content="Subscribe to your favorite email newsletters in your RSS reader. No more cluttered inbox."
     >
     <meta
-      property="og:title"
       content="unletter - Turn newsletters into RSS feeds"
+      property="og:title"
     >
     <meta
-      property="og:description"
       content="Subscribe to your favorite email newsletters in your RSS reader. No more cluttered inbox."
+      property="og:description"
     >
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="/og-image.png">
-    <meta name="twitter:card" content="summary_large_image">
+    <meta content="website" property="og:type">
+    <meta content="/og-image.png" property="og:image">
+    <meta content="summary_large_image" name="twitter:card">
 
     <script defer src="https://assets.onedollarstats.com/stonks.js"></script>
     <link
-      rel="icon"
       href="./quill-write-02-stroke-rounded.svg"
+      rel="icon"
       type="image/svg+xml"
     >
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="./styles.css">
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="./styles.css" rel="stylesheet">
     <link
-      rel="preload"
       as="style"
       href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap"
       onload="this.onload=null;this.rel='stylesheet'"
+      rel="preload"
     >
     <noscript>
       <link
@@ -108,7 +108,7 @@
           </div>
         </div>
       </section>
-      <section class="reader-fit" aria-labelledby="reader-fit-title">
+      <section aria-labelledby="reader-fit-title" class="reader-fit">
         <h2 id="reader-fit-title">Use the reader you already trust.</h2>
 
         <div class="benefit-list">
@@ -134,32 +134,32 @@
         <p>We're launching soon. Join the waitlist to be notified.</p>
 
         <form class="signup-form" id="signupForm">
-          <label for="emailInput" class="sr-only">Email address</label>
-          <label for="websiteInput" class="sr-only">Company website</label>
+          <label class="sr-only" for="emailInput">Email address</label>
+          <label class="sr-only" for="websiteInput">Company website</label>
           <input
-            type="text"
-            id="websiteInput"
-            class="hp-field"
-            autocomplete="off"
-            tabindex="-1"
             aria-hidden="true"
+            autocomplete="off"
+            class="hp-field"
+            id="websiteInput"
+            tabindex="-1"
+            type="text"
           >
-          <input type="hidden" id="turnstileTokenInput" value="">
+          <input id="turnstileTokenInput" type="hidden" value="">
           <input
-            type="email"
-            id="emailInput"
+            autocomplete="email"
             class="email-input"
+            id="emailInput"
             placeholder="your@email.com"
             required
-            autocomplete="email"
+            type="email"
           >
-          <button type="submit" class="submit-btn">Get Notified</button>
+          <button class="submit-btn" type="submit">Get Notified</button>
         </form>
         <div
+          aria-live="polite"
           class="form-message"
           id="formMessage"
           role="status"
-          aria-live="polite"
         ></div>
         <noscript>
           <p class="form-message info" style="opacity: 1">
@@ -203,9 +203,9 @@
 
         try {
           const response = await fetch("/api/waitlist", {
-            method: "POST",
+            body: JSON.stringify({ email, turnstileToken, website }),
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, website, turnstileToken }),
+            method: "POST",
           });
 
           const data = await response.json();

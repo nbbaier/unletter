@@ -44,11 +44,11 @@ async function verifyTurnstileToken(
     const response = await fetch(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
       {
-        method: "POST",
+        body: formData.toString(),
         headers: {
           "content-type": "application/x-www-form-urlencoded",
         },
-        body: formData.toString(),
+        method: "POST",
       }
     );
 
@@ -112,12 +112,12 @@ export async function handleWaitlistSignup(
 
     const entry: WaitlistEntry = {
       email,
+      referrer: truncateMetadataField(
+        request.headers.get("referer") || "direct"
+      ),
       timestamp: new Date().toISOString(),
       userAgent: truncateMetadataField(
         request.headers.get("user-agent") || "unknown"
-      ),
-      referrer: truncateMetadataField(
-        request.headers.get("referer") || "direct"
       ),
     };
 
@@ -160,6 +160,7 @@ export async function handleAdminList(
     let cursor: string | undefined;
 
     while (!listComplete) {
+      // biome-ignore lint/performance/noAwaitInLoops: KV list pagination requires sequential cursor fetches
       const list = await env.WAITLIST.list<WaitlistEntry>({ cursor });
       listComplete = list.list_complete;
       cursor = list.list_complete ? undefined : list.cursor;
@@ -188,8 +189,8 @@ export async function handleAdminList(
     );
 
     return jsonResponse({
-      total: emails.length,
       emails,
+      total: emails.length,
     });
   } catch (error) {
     console.error("Admin list error:", error);

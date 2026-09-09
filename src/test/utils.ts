@@ -25,20 +25,20 @@ export function createMockEnv(): MockEnv {
 
   const createKVNamespace = (store: Map<string, string>): KVNamespace =>
     ({
-      get: (key: string) => Promise.resolve(store.get(key) || null),
-      put: (key: string, value: string) => {
-        store.set(key, value);
-        return Promise.resolve();
-      },
       delete: (key: string) => {
         store.delete(key);
         return Promise.resolve();
       },
+      get: (key: string) => Promise.resolve(store.get(key) || null),
+      getWithMetadata: () => Promise.resolve({ metadata: null, value: null }),
       list: () => {
         const keys = Array.from(store.keys()).map((name) => ({ name }));
-        return Promise.resolve({ keys, list_complete: true, cursor: "" });
+        return Promise.resolve({ cursor: "", keys, list_complete: true });
       },
-      getWithMetadata: () => Promise.resolve({ value: null, metadata: null }),
+      put: (key: string, value: string) => {
+        store.set(key, value);
+        return Promise.resolve();
+      },
     }) as unknown as KVNamespace;
 
   const rateLimiterStub = {
@@ -47,41 +47,41 @@ export function createMockEnv(): MockEnv {
         new Response(
           JSON.stringify({
             allowed: true,
-            remaining: 100,
             limit: 100,
+            remaining: 100,
             resetAt: Math.floor(Date.now() / 1000) + 60,
           }),
           {
-            status: 200,
             headers: {
               "content-type": "application/json",
             },
+            status: 200,
           }
         )
       ),
   } as unknown as DurableObjectStub;
 
   const rateLimiterNamespace = {
-    idFromName: (name: string) => ({ toString: () => name }),
     get: () => rateLimiterStub,
+    idFromName: (name: string) => ({ toString: () => name }),
   } as unknown as DurableObjectNamespace;
 
   return {
-    DATA: createKVNamespace(dataStore),
-    WAITLIST: createKVNamespace(waitlistStore),
-    RATE_LIMITER: rateLimiterNamespace,
-    JWT_SECRET: "test-secret-key-for-jwt-signing-in-tests-only",
     ADMIN_API_KEY: "test-admin-api-key",
-    WEBHOOK_SECRET: "test-webhook-secret",
     APP_BASE_URL: "https://unletter.test",
-    INBOUND_EMAIL_DOMAIN: "unletter.app",
-    TURNSTILE_SECRET: "",
     ASSETS: {
       fetch: async () =>
         new Response("Not Found", {
           status: 404,
         }),
     },
+    DATA: createKVNamespace(dataStore),
+    INBOUND_EMAIL_DOMAIN: "unletter.app",
+    JWT_SECRET: "test-secret-key-for-jwt-signing-in-tests-only",
+    RATE_LIMITER: rateLimiterNamespace,
+    TURNSTILE_SECRET: "",
+    WAITLIST: createKVNamespace(waitlistStore),
+    WEBHOOK_SECRET: "test-webhook-secret",
   };
 }
 

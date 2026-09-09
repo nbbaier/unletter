@@ -13,13 +13,8 @@ const MAX_EMAIL_CONTENT_CHARS = 500_000;
 
 const InboundPayloadSchema = z.object({
   email: z.object({
-    id: z.string().min(1),
-    recipient: z.string().min(3),
-    subject: z.string().optional().default("(No subject)"),
-    receivedAt: z.string(),
     from: z
       .object({
-        text: z.string().optional().default("unknown@unknown"),
         addresses: z
           .array(
             z.object({
@@ -29,16 +24,21 @@ const InboundPayloadSchema = z.object({
           )
           .optional()
           .default([]),
+        text: z.string().optional().default("unknown@unknown"),
       })
       .optional()
-      .default({ text: "unknown@unknown", addresses: [] }),
+      .default({ addresses: [], text: "unknown@unknown" }),
+    id: z.string().min(1),
     parsedData: z
       .object({
-        textBody: z.string().optional().default(""),
         htmlBody: z.string().optional().default(""),
+        textBody: z.string().optional().default(""),
       })
       .optional()
-      .default({ textBody: "", htmlBody: "" }),
+      .default({ htmlBody: "", textBody: "" }),
+    receivedAt: z.string(),
+    recipient: z.string().min(3),
+    subject: z.string().optional().default("(No subject)"),
   }),
 });
 
@@ -69,14 +69,14 @@ function parseRecipient(
   recipient: string
 ): { domain: string; feedId: string } | null {
   const recipientParts = recipient.split("@");
-  const feedId = recipientParts[0];
-  const recipientDomain = recipientParts[1]?.toLowerCase();
+  const [feedId, domainPart] = recipientParts;
+  const recipientDomain = domainPart?.toLowerCase();
 
   if (recipientParts.length !== 2 || !feedId || !recipientDomain) {
     return null;
   }
 
-  return { feedId, domain: recipientDomain };
+  return { domain: recipientDomain, feedId };
 }
 
 async function updateFeedEmailIndex(
@@ -141,10 +141,10 @@ export async function handleInboundWebhook(
     const emailId = payload.email.id;
     const existingEmail = await env.DATA.get(`email:${emailId}`);
     if (existingEmail) {
-      return jsonResponse({ success: true, emailId, duplicate: true });
+      return jsonResponse({ duplicate: true, emailId, success: true });
     }
 
-    const fromAddress = payload.email.from.addresses[0];
+    const [fromAddress] = payload.email.from.addresses;
     const fromName = fromAddress?.name || "";
     const fromEmail = fromAddress?.address || payload.email.from.text;
 
@@ -164,14 +164,14 @@ export async function handleInboundWebhook(
     }
 
     const storedEmail: StoredEmail = {
-      id: emailId,
       feedId,
-      subject: payload.email.subject,
       from: {
-        name: fromName,
         email: fromEmail,
+        name: fromName,
       },
       html: sanitizedHtml,
+      id: emailId,
+      subject: payload.email.subject,
       text: payload.email.parsedData.textBody || "",
       timestamp: payload.email.receivedAt,
       webViewLink,
@@ -184,7 +184,7 @@ export async function handleInboundWebhook(
     await env.DATA.delete(`feed:${feedId}:rss`);
     await env.DATA.delete(`feed:${feedId}:atom`);
 
-    return jsonResponse({ success: true, emailId });
+    return jsonResponse({ emailId, success: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return jsonResponse({ error: "Invalid webhook payload" }, 400);

@@ -15,9 +15,9 @@ const app = new Hono<{ Bindings: WorkerEnv }>();
 const apiRoutes = new Hono<{ Bindings: WorkerEnv }>();
 
 const PRE_FLIGHT_HEADERS = {
-  "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
   "access-control-allow-headers": "content-type, authorization",
+  "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
+  "access-control-allow-origin": "*",
 };
 
 function createRequestID(): string {
@@ -40,8 +40,8 @@ function ensureEnvironmentValidated(env: WorkerEnv): Response | null {
         error: "Service configuration error. Please contact administrator.",
       }),
       {
-        status: 500,
         headers: { "content-type": "application/json" },
+        status: 500,
       }
     );
   }
@@ -61,8 +61,8 @@ function createHealthResponse(env: WorkerEnv): Response {
     }),
     {
       headers: {
-        "content-type": "application/json",
         "cache-control": "no-cache",
+        "content-type": "application/json",
       },
     }
   );
@@ -89,13 +89,13 @@ app.use("*", async (c, next) => {
 
   console.log(
     JSON.stringify({
-      level: "info",
+      durationMs,
       event: "request.completed",
-      requestID,
+      level: "info",
       method: c.req.method,
       path: c.req.path,
+      requestID,
       status: c.res.status,
-      durationMs,
     })
   );
 });

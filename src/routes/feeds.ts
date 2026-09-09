@@ -48,11 +48,11 @@ export async function handleCreateFeed(
     const emailAddress = `${feedId}@${env.INBOUND_EMAIL_DOMAIN}`;
 
     const feed: Feed = {
-      id: feedId,
-      userId: auth.userId,
-      name,
-      emailAddress,
       createdAt: new Date().toISOString(),
+      emailAddress,
+      id: feedId,
+      name,
+      userId: auth.userId,
     };
 
     // Store feed
@@ -61,20 +61,20 @@ export async function handleCreateFeed(
 
     // Keep this denormalized shape in sync with any future feed update path.
     userFeeds.push({
+      createdAt: feed.createdAt,
+      emailAddress: feed.emailAddress,
       id: feed.id,
       name: feed.name,
-      emailAddress: feed.emailAddress,
-      createdAt: feed.createdAt,
     });
     await env.DATA.put(`user:${auth.userId}:feeds`, JSON.stringify(userFeeds));
 
     return jsonResponse(
       {
         feed: {
+          createdAt: feed.createdAt,
+          emailAddress: feed.emailAddress,
           id: feed.id,
           name: feed.name,
-          emailAddress: feed.emailAddress,
-          createdAt: feed.createdAt,
         },
       },
       201
@@ -107,10 +107,10 @@ export async function handleListFeeds(
       userFeeds.map(async (item) => {
         if (typeof item !== "string") {
           return {
+            createdAt: item.createdAt,
+            emailAddress: item.emailAddress,
             id: item.id,
             name: item.name,
-            emailAddress: item.emailAddress,
-            createdAt: item.createdAt,
           };
         }
 
@@ -122,10 +122,10 @@ export async function handleListFeeds(
 
         const feed: Feed = JSON.parse(feedData);
         return {
+          createdAt: feed.createdAt,
+          emailAddress: feed.emailAddress,
           id: feed.id,
           name: feed.name,
-          emailAddress: feed.emailAddress,
-          createdAt: feed.createdAt,
         };
       })
     );
@@ -289,12 +289,12 @@ export async function handleGetFeed(
 
     if (ifNoneMatch === etag) {
       return new Response(null, {
-        status: 304,
         headers: {
-          etag,
-          "cache-control": "public, max-age=300",
           "access-control-allow-origin": "*",
+          "cache-control": "public, max-age=300",
+          etag,
         },
+        status: 304,
       });
     }
 
@@ -306,10 +306,10 @@ export async function handleGetFeed(
     if (cachedFeed) {
       return new Response(cachedFeed, {
         headers: {
-          "content-type": contentType,
-          "cache-control": "public, max-age=300",
-          etag,
           "access-control-allow-origin": "*",
+          "cache-control": "public, max-age=300",
+          "content-type": contentType,
+          etag,
         },
       });
     }
@@ -330,25 +330,25 @@ export async function handleGetFeed(
 
     // Build feed
     const rssFeed = new RSSFeed({
-      title: feed.name,
-      description: `Newsletter feed: ${feed.name}`,
-      id: `${baseUrl}/feeds/${feedId}`,
-      link: `${baseUrl}/feeds/${feedId}`,
-      language: "en",
-      updated: emails.length > 0 ? new Date(emails[0].timestamp) : new Date(),
-      generator: "unletter",
       copyright: "",
+      description: `Newsletter feed: ${feed.name}`,
+      generator: "unletter",
+      id: `${baseUrl}/feeds/${feedId}`,
+      language: "en",
+      link: `${baseUrl}/feeds/${feedId}`,
+      title: feed.name,
+      updated: emails.length > 0 ? new Date(emails[0].timestamp) : new Date(),
     });
 
     for (const email of emails) {
       rssFeed.addItem({
-        title: email.subject,
+        author: [{ name: email.from.name || email.from.email }],
+        content: email.html,
+        date: new Date(email.timestamp),
+        description: email.text.slice(0, 500),
         id: `${baseUrl}/feeds/${feedId}/view/${email.id}`,
         link: `${baseUrl}/feeds/${feedId}/view/${email.id}`,
-        description: email.text.slice(0, 500),
-        content: email.html,
-        author: [{ name: email.from.name || email.from.email }],
-        date: new Date(email.timestamp),
+        title: email.subject,
       });
     }
 
@@ -359,10 +359,10 @@ export async function handleGetFeed(
 
     return new Response(output, {
       headers: {
-        "content-type": contentType,
-        "cache-control": "public, max-age=300",
-        etag,
         "access-control-allow-origin": "*",
+        "cache-control": "public, max-age=300",
+        "content-type": contentType,
+        etag,
       },
     });
   } catch (error) {

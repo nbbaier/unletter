@@ -26,8 +26,8 @@ export const CreateFeedSchema = z.object({
 // Waitlist schema
 export const WaitlistSchema = z.object({
   email: z.string().email("Invalid email address").toLowerCase(),
-  website: z.string().trim().max(200).optional(),
   turnstileToken: z.string().trim().optional(),
+  website: z.string().trim().max(200).optional(),
 });
 
 // Helper function to validate and return typed data
@@ -40,6 +40,6 @@ export function validate<T extends z.ZodTypeAny>(
 
 // Helper to extract first error message
 export function getFirstError(error: z.ZodError<unknown>): string {
-  const firstIssue = error.issues[0];
+  const [firstIssue] = error.issues;
   return firstIssue?.message || "Validation failed";
 }
